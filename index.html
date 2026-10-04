@@ -104,6 +104,17 @@ button,select,input,textarea{font:inherit;color:inherit}
 .total .val small{font-size:12px;font-weight:500;color:var(--muted);margin-left:3px}
 .total.weight{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .total.weight .lbl,.total.weight .val small{color:var(--accent-ink);opacity:.75}
+.total.money{grid-column:span 2}
+.total.money .sub{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.linkbtn{border:none;background:none;padding:0;color:var(--ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px}
+.pricetbl{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.pricetbl th{text-align:left;color:var(--muted);font-size:11px;padding:4px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+.pricetbl td{padding:4px;border-bottom:1px solid var(--line)}
+.pricetbl tr.grp td{background:var(--panel-2);font-weight:700}
+.pricetbl .n{text-align:right;font-family:var(--font-num)}
+.pricetbl input{width:90px;text-align:right;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-family:var(--font-num);font-size:12px}
+.pricetbl tr.changed input{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.pricewrap{max-height:min(56vh,460px);overflow:auto;border:1px solid var(--line);border-radius:6px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
 .chip.warn{border-color:var(--warn);color:var(--warn)}
@@ -200,6 +211,10 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
         <div class="totals">
           <div class="total"><div class="lbl">総数量</div><div class="val" id="totQty">0<small>点</small></div></div>
           <div class="total weight"><div class="lbl">総重量</div><div class="val" id="totKg">0<small>kg</small></div></div>
+          <div class="total money">
+            <div class="lbl">合計金額（税抜）</div><div class="val" id="totYen">¥0</div>
+            <div class="sub"><span id="totTax">税込 ¥0（10%）</span><button class="linkbtn" id="btnPrice" type="button">単価を編集</button></div>
+          </div>
         </div>
         <div class="chips" id="chips"></div>
         <div class="dims" id="dims"></div>
@@ -210,7 +225,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
           <button class="btn" id="btnCsv" style="padding:3px 9px;font-size:12px">表をコピー</button>
         </div>
         <div class="bomwrap"><table class="bom" id="bom"></table></div>
-        <p class="hint">重量は「参考」フォルダの国産くさび式足場Aタイプ（足場JAPAN掲載値）の単重から計算しています。合板とつば付きフックは目安の重量です。</p>
+        <p class="hint">重量・単価は国産くさび式足場Aタイプ（足場JAPAN掲載値・税抜）から計算しています。合板とつば付きフックの重量は目安、単価は合板1,500円・フック150円です。</p>
       </section>
     </aside>
   </div>
@@ -247,6 +262,17 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
   </div>
 </dialog>
 
+<dialog id="dlgPrice">
+  <h3>単価の編集（税抜・円）</h3>
+  <p class="hint" style="margin-top:0">初期値は足場JAPANの国産くさび式足場Aタイプ掲載価格（税抜）、合板1,500円・つば付きフック150円です。変更すると拾い出し表と合計にすぐ反映され、このブラウザに保存されます。</p>
+  <div class="field" style="margin:0 0 10px"><span>消費税率（%）</span><input id="taxRate" type="number" min="0" max="100" step="1" value="10"></div>
+  <div class="pricewrap"><table class="pricetbl" id="priceTbl"></table></div>
+  <div class="row">
+    <button class="btn" id="priceReset" type="button">すべて初期値に戻す</button>
+    <button class="btn primary" id="priceClose" type="button">閉じる</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" hidden></div>
 
 <script type="importmap">
@@ -263,35 +289,35 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 /* ===== 部材カタログ（参考: 国産くさび式足場Aタイプ） ===== */
 const CATALOG = {
   post: [
-    {code:'KSA-36', L:3600, kg:13.1}, {code:'KSA-27', L:2700, kg:10.1}, {code:'KSA-18', L:1800, kg:6.8},
-    {code:'KSA-09', L:900, kg:3.7}, {code:'KSA-072', L:720, kg:3.2}, {code:'KSA-045', L:450, kg:2.1}],
+    {code:'KSA-36', L:3600, kg:13.1, price:4320}, {code:'KSA-27', L:2700, kg:10.1, price:3520}, {code:'KSA-18', L:1800, kg:6.8, price:2560},
+    {code:'KSA-09', L:900, kg:3.7, price:1480}, {code:'KSA-072', L:720, kg:3.2, price:1320}, {code:'KSA-045', L:450, kg:2.1, price:1120}],
   board: [
-    {code:'KSD-4018', W:400, L:1800, kg:13.2}, {code:'KSD-4012', W:400, L:1200, kg:9.4},
-    {code:'KSD-4009', W:400, L:900, kg:6.6}, {code:'KSD-4006', W:400, L:600, kg:5.2},
-    {code:'KSD-2518', W:250, L:1800, kg:9.0}, {code:'KSD-2512', W:250, L:1200, kg:6.6},
-    {code:'KSD-2509', W:250, L:900, kg:5.0}, {code:'KSD-2506', W:250, L:600, kg:3.9},
-    {code:'KSD-2504', W:250, L:400, kg:3.1}],
+    {code:'KSD-4018', W:400, L:1800, kg:13.2, price:4600}, {code:'KSD-4012', W:400, L:1200, kg:9.4, price:3960},
+    {code:'KSD-4009', W:400, L:900, kg:6.6, price:2800}, {code:'KSD-4006', W:400, L:600, kg:5.2, price:2520},
+    {code:'KSD-2518', W:250, L:1800, kg:9.0, price:3520}, {code:'KSD-2512', W:250, L:1200, kg:6.6, price:3200},
+    {code:'KSD-2509', W:250, L:900, kg:5.0, price:2600}, {code:'KSD-2506', W:250, L:600, kg:3.9, price:2120},
+    {code:'KSD-2504', W:250, L:400, kg:3.1, price:1800}],
   ledger: [
-    {code:'KSC-18', L:1800, kg:4.3}, {code:'KSC-12', L:1200, kg:2.9}, {code:'KSC-09', L:900, kg:2.2},
-    {code:'KSC-06', L:600, kg:1.6}, {code:'KSC-04', L:400, kg:1.2}, {code:'KSC-03', L:300, kg:1.1},
-    {code:'KSC-02', L:200, kg:0.8}],
+    {code:'KSC-18', L:1800, kg:4.3, price:1480}, {code:'KSC-12', L:1200, kg:2.9, price:1200}, {code:'KSC-09', L:900, kg:2.2, price:1000},
+    {code:'KSC-06', L:600, kg:1.6, price:800}, {code:'KSC-04', L:400, kg:1.2, price:680}, {code:'KSC-03', L:300, kg:1.1, price:640},
+    {code:'KSC-02', L:200, kg:0.8, price:600}],
   jack: [
-    {code:'KSE-6', kg:2.7, spec:'φ38.1×600'}, {code:'KSE-6S', kg:2.9, spec:'φ38.1×600'},
-    {code:'KSE-6P', kg:2.1, spec:'φ38.1×600'}],
+    {code:'KSE-6', kg:2.7, price:1320, spec:'φ38.1×600'}, {code:'KSE-6S', kg:2.9, price:1560, spec:'φ38.1×600'},
+    {code:'KSE-6P', kg:2.1, price:1520, spec:'φ38.1×600'}],
   stair: [
-    {code:'KSH-1818', kg:18.5, spec:'鋼製 1800×1800'}, {code:'KSH-1818AL', kg:11.9, spec:'アルミ 1800×1800'}],
+    {code:'KSH-1818', kg:18.5, price:10600, spec:'鋼製 1800×1800'}, {code:'KSH-1818AL', kg:11.9, price:20000, spec:'アルミ 1800×1800'}],
   panel: [
-    {code:'PLY-1809', kg:11.0, spec:'合板 1820×910×12', est:true}],
+    {code:'PLY-1809', kg:11.0, price:1500, spec:'合板 1820×910×12', est:true}],
   /* 筋交：管長＋両端金具で、スパン×高さ の対角をコマからコマへ渡す */
   brace: [
-    {code:'KSL-18', L:2420, span:1800, rise:1800, kg:4.0}, {code:'KSL-12', L:1686, span:1200, rise:1350, kg:3.3},
-    {code:'KSL-09', L:1145, span:900, rise:900, kg:2.5}],
+    {code:'KSL-18', L:2420, span:1800, rise:1800, kg:4.0, price:2280}, {code:'KSL-12', L:1686, span:1200, rise:1350, kg:3.3, price:1840},
+    {code:'KSL-09', L:1145, span:900, rise:900, kg:2.5, price:1720}],
   /* 寸法確認用の人（集計に含めない） */
   person: [
     {code:'MAN-170', kg:0, spec:'作業員 身長170cm', ref:true}],
 };
 /* 合板1枚につき つば付きフック 4本（重量は目安） */
-const HOOK = {code:'HOOK-F', type:'hook', kg:0.2, spec:'つば付きフック（ボルト・ナット付）', est:true};
+const HOOK = {code:'HOOK-F', type:'hook', kg:0.2, price:150, spec:'つば付きフック（ボルト・ナット付）', est:true};
 const HOOKS_PER_PANEL = 4;
 const TYPES = ['post','board','ledger','jack','stair','panel','brace','person'];
 const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）'};
@@ -339,6 +365,7 @@ const SNAP_PX = 30;
 const state = {
   tool: 'select',
   panelOri: 'h',
+  prices: {}, taxRate: 10,   // 単価の上書き（品番→円）と消費税率（%）
   code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818', panel:'PLY-1809', brace:'KSL-18', person:'MAN-170'},
   snap: true, grid: 0.3, workH: 0, rot: 0,
   parts: [], nextId: 1, selected: null,
@@ -1085,22 +1112,26 @@ $('workH').onchange = e => { state.workH = Math.max(0, +e.target.value||0)/1000;
 $('rotDeg').onchange = e => { state.rot = +e.target.value||0; };
 
 /* ===== 拾い出し ===== */
+const priceOf = it => (state.prices[it.code] ?? it.price ?? 0);
+const fmtYen = x => '¥' + Math.round(x).toLocaleString('ja-JP');
 const fmtKg = x => x.toLocaleString('ja-JP', {minimumFractionDigits:1, maximumFractionDigits:1});
 function bomData(){
   const by = new Map();
   for (const p of state.parts) by.set(p.code, (by.get(p.code)||0) + 1);
   const groups = [];
   for (const t of TYPES) {
-    const rows = CATALOG[t].filter(it => by.get(it.code) && !it.ref).map(it => ({it, qty:by.get(it.code), kg:by.get(it.code)*it.kg}));
-    if (rows.length) groups.push({t, rows, qty:rows.reduce((a,r)=>a+r.qty,0), kg:rows.reduce((a,r)=>a+r.kg,0)});
+    const rows = CATALOG[t].filter(it => by.get(it.code) && !it.ref).map(it => ({it, qty:by.get(it.code), kg:by.get(it.code)*it.kg, yen:by.get(it.code)*priceOf(it)}));
+    if (rows.length) groups.push({t, rows, qty:rows.reduce((a,r)=>a+r.qty,0), kg:rows.reduce((a,r)=>a+r.kg,0), yen:rows.reduce((a,r)=>a+r.yen,0)});
   }
   const nHook = state.parts.filter(p => p.type==='panel').length * HOOKS_PER_PANEL;
-  if (nHook) groups.push({t:'hook', rows:[{it:HOOK, qty:nHook, kg:nHook*HOOK.kg}], qty:nHook, kg:nHook*HOOK.kg});
+  if (nHook) { const yen = nHook*priceOf(HOOK); groups.push({t:'hook', rows:[{it:HOOK, qty:nHook, kg:nHook*HOOK.kg, yen}], qty:nHook, kg:nHook*HOOK.kg, yen}); }
   return groups;
 }
 function renderBom(){
   const groups = bomData();
-  const qty = groups.reduce((a,g)=>a+g.qty,0), kg = groups.reduce((a,g)=>a+g.kg,0);
+  const qty = groups.reduce((a,g)=>a+g.qty,0), kg = groups.reduce((a,g)=>a+g.kg,0), yen = groups.reduce((a,g)=>a+g.yen,0);
+  $('totYen').textContent = fmtYen(yen);
+  $('totTax').textContent = `税込 ${fmtYen(yen * (1 + state.taxRate/100))}（${state.taxRate}%）`;
   $('totQty').innerHTML = `${qty.toLocaleString('ja-JP')}<small>点</small>`;
   $('totKg').innerHTML = kg >= 1000 ? `${(kg/1000).toFixed(2)}<small>t（${fmtKg(kg)}kg）</small>` : `${fmtKg(kg)}<small>kg</small>`;
   const bad = state.parts.filter(p => !isConnected(p)).length;
@@ -1112,20 +1143,23 @@ function renderBom(){
   } else $('dims').textContent = '';
   const tb = $('bom');
   if (!groups.length) { tb.innerHTML = '<tr><td class="empty">部材がまだありません</td></tr>'; return; }
-  let h = '<thead><tr><th>品番</th><th>規格</th><th class="n">数量</th><th class="n">重量kg</th></tr></thead><tbody>';
+  let h = '<thead><tr><th>品番・規格</th><th class="n">数量</th><th class="n">重量kg</th><th class="n">金額</th></tr></thead><tbody>';
   for (const g of groups) {
-    h += `<tr class="grp"><td colspan="2"><span class="sw" style="background:var(--c-${g.t})"></span>${LABEL[g.t]}</td><td class="n">${g.qty}</td><td class="n">${fmtKg(g.kg)}</td></tr>`;
-    for (const r of g.rows) h += `<tr><td class="code">${r.it.code}</td><td>${specText(r.it)}<br><span style="color:var(--muted)">@${r.it.kg.toFixed(1)}kg${estMark(r.it)}${r.it===HOOK ? '・合板1枚に4本' : ''}</span></td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td></tr>`;
+    h += `<tr class="grp"><td><span class="sw" style="background:var(--c-${g.t})"></span>${LABEL[g.t]}</td><td class="n">${g.qty}</td><td class="n">${fmtKg(g.kg)}</td><td class="n">${fmtYen(g.yen)}</td></tr>`;
+    for (const r of g.rows) h += `<tr><td><span class="code">${r.it.code}</span> ${specText(r.it)}<br><span style="color:var(--muted)">@${r.it.kg.toFixed(1)}kg${estMark(r.it)}・@${fmtYen(priceOf(r.it))}${r.it===HOOK ? '・合板1枚に4本' : ''}</span></td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td><td class="n">${fmtYen(r.yen)}</td></tr>`;
   }
-  h += `</tbody><tfoot><tr><td colspan="2"><b>合計</b></td><td class="n"><b>${qty}</b></td><td class="n"><b>${fmtKg(kg)}</b></td></tr></tfoot>`;
+  h += `</tbody><tfoot><tr><td><b>合計（税抜）</b></td><td class="n"><b>${qty}</b></td><td class="n"><b>${fmtKg(kg)}</b></td><td class="n"><b>${fmtYen(yen)}</b></td></tr>`
+    + `<tr><td>税込（${state.taxRate}%）</td><td></td><td></td><td class="n">${fmtYen(yen * (1 + state.taxRate/100))}</td></tr></tfoot>`;
   tb.innerHTML = h;
 }
 $('btnCsv').onclick = () => {
   const groups = bomData();
-  const lines = ['区分\t品番\t規格\t数量\t単重(kg)\t重量(kg)'];
-  let q=0, w=0;
-  for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg + estMark(r.it), r.kg.toFixed(1)].join('\t')); q+=r.qty; w+=r.kg; }
-  lines.push(['合計','','',q,'',w.toFixed(1)].join('\t'));
+  const lines = ['区分\t品番\t規格\t数量\t単重(kg)\t重量(kg)\t単価(円・税抜)\t金額(円・税抜)'];
+  let q=0, w=0, y=0;
+  for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg + estMark(r.it), r.kg.toFixed(1), priceOf(r.it), Math.round(r.yen)].join('\t')); q+=r.qty; w+=r.kg; y+=r.yen; }
+  lines.push(['合計（税抜）','','',q,'',w.toFixed(1),'',Math.round(y)].join('\t'));
+  lines.push([`消費税（${state.taxRate}%）`,'','','','','','',Math.round(y*state.taxRate/100)].join('\t'));
+  lines.push(['合計（税込）','','','','','','',Math.round(y*(1+state.taxRate/100))].join('\t'));
   copyText(lines.join('\n'), '拾い出し表をコピーしました（Excelに貼り付けできます）');
 };
 
@@ -1190,7 +1224,7 @@ $('genForm').addEventListener('submit', e => {
 });
 
 /* ===== データ入出力 ===== */
-$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:DATA_VER, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
+$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:DATA_VER, prices:state.prices, taxRate:state.taxRate, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
 $('dataClose').onclick = () => $('dlgData').close();
 $('dataCopy').onclick = () => copyText($('dataTxt').value, '図面データをコピーしました');
 $('dataLoad').onclick = () => loadJson($('dataTxt').value);
@@ -1211,11 +1245,46 @@ function loadJson(txt){
     if (!it || !Array.isArray(p.p) || p.p.length!==3 || !p.p.every(Number.isFinite)) continue;
     parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0, ...(p.ori==='v' ? {ori:'v', drop:+p.drop||PANEL_ORI.v.drop} : {}), ...(it.type==='brace' ? {up: p.up===-1 ? -1 : 1} : {})});
   }
+  if (!Array.isArray(data)) {
+    if (data.prices && typeof data.prices==='object') { state.prices = {}; for (const [k,v] of Object.entries(data.prices)) if ((ITEM[k] || k===HOOK.code) && Number.isFinite(v) && v >= 0) state.prices[k] = v; }
+    if (Number.isFinite(data.taxRate)) state.taxRate = data.taxRate;
+  }
   pushHistory();
   state.parts = migrate(parts, Array.isArray(data) ? 1 : data.version).map((p,i)=>({...p, id:i+1})); state.nextId = parts.length+1; state.selected = null;
   rebuildAll(); fitView(); $('dlgData').close();
   toast(`${parts.length} 点を読み込みました` + (parts.length<arr.length ? `（不明な部材 ${arr.length-parts.length} 点を除外）` : ''));
 }
+
+/* ===== 単価の編集 ===== */
+function renderPriceTable(){
+  let h = '<thead><tr><th>品番</th><th>規格</th><th class="n">初期値</th><th class="n">単価（円）</th></tr></thead><tbody>';
+  const groups = TYPES.map(t => [t, CATALOG[t].filter(it => !it.ref)]).filter(([,a]) => a.length);
+  groups.push(['hook', [HOOK]]);
+  for (const [t, items] of groups) {
+    h += `<tr class="grp"><td colspan="4"><span class="sw" style="background:var(--c-${t});display:inline-block;margin-right:6px;vertical-align:-1px"></span>${LABEL[t]}</td></tr>`;
+    for (const it of items) {
+      const changed = state.prices[it.code] !== undefined && state.prices[it.code] !== it.price;
+      h += `<tr class="${changed ? 'changed' : ''}"><td class="code" style="font-family:var(--font-num)">${it.code}</td><td>${specText(it)}</td><td class="n">${it.price.toLocaleString('ja-JP')}</td>`
+        + `<td class="n"><input type="number" min="0" step="10" id="pr-${it.code}" data-code="${it.code}" value="${priceOf(it)}" aria-label="${it.code}の単価"></td></tr>`;
+    }
+  }
+  $('priceTbl').innerHTML = h + '</tbody>';
+}
+$('btnPrice').onclick = () => { $('taxRate').value = state.taxRate; renderPriceTable(); $('dlgPrice').showModal(); };
+$('priceClose').onclick = () => $('dlgPrice').close();
+$('priceTbl').addEventListener('input', e => {
+  const code = e.target.dataset.code; if (!code) return;
+  const it = ITEM[code] || (code===HOOK.code ? HOOK : null); if (!it) return;
+  const v = e.target.value === '' ? NaN : Math.max(0, +e.target.value);
+  if (!Number.isFinite(v) || v === it.price) delete state.prices[code]; else state.prices[code] = v;
+  e.target.closest('tr').classList.toggle('changed', state.prices[code] !== undefined);
+  renderBom(); save();
+});
+$('taxRate').addEventListener('input', e => {
+  const v = +e.target.value; if (!Number.isFinite(v) || v < 0) return;
+  state.taxRate = v; renderBom(); save();
+});
+$('priceReset').onclick = () => { state.prices = {}; renderPriceTable(); renderBom(); save(); toast('単価を初期値に戻しました'); };
 
 /* ===== 全消去（二度押し確認） ===== */
 let clearArm = 0;
@@ -1244,7 +1313,7 @@ function fitView(){
   controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, dist);
 }
 const STORE = 'ashiba3d.v1';
-function save(){ try { localStorage.setItem(STORE, JSON.stringify({ver:DATA_VER, parts:state.parts, snap:state.snap, grid:state.grid})); } catch {} }
+function save(){ try { localStorage.setItem(STORE, JSON.stringify({ver:DATA_VER, parts:state.parts, snap:state.snap, grid:state.grid, prices:state.prices, taxRate:state.taxRate})); } catch {} }
 function load(){ try { const d = JSON.parse(localStorage.getItem(STORE)); if (d && Array.isArray(d.parts)) return d; } catch {} return null; }
 
 function resize(){
@@ -1261,6 +1330,8 @@ if (saved) {
   state.parts = migrate(saved.parts.filter(p => ITEM[p.code]), saved.ver);
   state.nextId = state.parts.reduce((m,p)=>Math.max(m,p.id||0),0)+1;
   state.parts.forEach((p,i)=>{ if(!p.id) p.id = state.nextId++; });
+  if (saved.prices && typeof saved.prices==='object') for (const [k,v] of Object.entries(saved.prices)) if ((ITEM[k] || k===HOOK.code) && Number.isFinite(v) && v >= 0) state.prices[k] = v;
+  if (Number.isFinite(saved.taxRate)) state.taxRate = saved.taxRate;
   if (typeof saved.grid==='number') { state.grid = saved.grid; $('gridSel').value = String(Math.round(saved.grid*1000)); }
 }
 renderTools(); renderSpecs();
