@@ -1,0 +1,909 @@
+<title>足場設計 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: 現場の作業盤。左=部材棚、中央=3Dビュー、右=拾い出し表。スマホでは縦積み。 */
+:root{
+  --bg:#e9ecef; --panel:#f7f8f9; --panel-2:#eef1f3; --ink:#1c2229; --muted:#5b6571; --line:#d2d8de;
+  --accent:#f2b705; --accent-ink:#1c2229; --ok:#23884f; --warn:#c85a14; --bad:#c22f2f;
+  --scene:#dde3e8; --grid-major:#9aa6b2; --grid-minor:#c3cbd3;
+  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c;
+  --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  --font-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
+  --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
+  --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
+  --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
+  --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43;
+  color-scheme:dark; }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;margin:0}
+*{box-sizing:border-box}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;min-height:0}
+.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand h1{font-size:17px;margin:0;letter-spacing:.04em}
+.brand .stripe{width:22px;height:14px;align-self:center;border-radius:2px;
+  background:repeating-linear-gradient(-45deg,var(--accent) 0 5px,var(--ink) 5px 10px)}
+.brand small{color:var(--muted);font-size:12px}
+.btn{border:1px solid var(--line);background:var(--panel-2);padding:6px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.danger{color:var(--bad)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+
+.main{display:grid;grid-template-columns:232px minmax(0,1fr) 320px;min-height:0}
+.side{background:var(--panel);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px;min-height:0}
+.side.left{border-right:1px solid var(--line)}
+.side.right{border-left:1px solid var(--line)}
+.sec h2{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:0 0 8px;font-weight:700}
+
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tool{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);cursor:pointer;text-align:left}
+.tool:hover{border-color:var(--muted)}
+.tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.tool kbd{margin-left:auto;font-family:var(--font-num);font-size:10px;opacity:.6}
+.tool.wide{grid-column:span 2}
+.sw{width:10px;height:10px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.2)}
+
+.specs{display:flex;flex-direction:column;gap:4px}
+.spec{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:5px;cursor:pointer;background:transparent;text-align:left}
+.spec:hover{border-color:var(--muted)}
+.spec[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);background:var(--panel-2)}
+.spec .code{font-family:var(--font-num);font-size:12px;font-weight:700;white-space:nowrap}
+.spec .dim{color:var(--muted);font-size:12px}
+.spec .kg{font-family:var(--font-num);font-size:12px;font-variant-numeric:tabular-nums}
+
+.snaprow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2)}
+.switch{position:relative;width:48px;height:26px;border-radius:13px;border:none;background:var(--line);cursor:pointer;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--panel);transition:left .15s}
+.switch[aria-checked="true"]{background:var(--ok)}
+.switch[aria-checked="true"]::after{left:25px}
+.field{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;margin-top:8px;font-size:13px}
+.field select,.field input{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;width:96px;font-family:var(--font-num);font-size:12px}
+.field.off{opacity:.45}
+.hint{color:var(--muted);font-size:12px;line-height:1.6;margin:6px 0 0}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px;color:var(--muted)}
+.keys kbd{font-family:var(--font-num);font-size:11px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:0 5px;justify-self:start}
+
+.view{position:relative;min-height:0;min-width:0;background:var(--scene)}
+.view canvas{display:block;width:100%;height:100%;touch-action:none}
+.overlay{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px;align-items:flex-end;justify-content:space-between;pointer-events:none;flex-wrap:wrap}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 11px;font-size:13px;max-width:100%;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.msg b{font-family:var(--font-num)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.pill.on .dot{background:var(--ok)}
+.st-ok{color:var(--ok)} .st-warn{color:var(--warn)} .st-bad{color:var(--bad)}
+
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.total{padding:10px 12px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+.total .lbl{font-size:11px;color:var(--muted);letter-spacing:.08em}
+.total .val{font-family:var(--font-num);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:2px}
+.total .val small{font-size:12px;font-weight:500;color:var(--muted);margin-left:3px}
+.total.weight{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.total.weight .lbl,.total.weight .val small{color:var(--accent-ink);opacity:.75}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
+.chip.warn{border-color:var(--warn);color:var(--warn)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.dims{font-family:var(--font-num);font-size:12px;color:var(--muted);margin-top:8px}
+
+.bomwrap{overflow-x:auto}
+table.bom{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.bom th{text-align:left;font-weight:700;color:var(--muted);font-size:11px;padding:4px 4px;border-bottom:1px solid var(--line)}
+.bom td{padding:5px 4px;border-bottom:1px solid var(--line)}
+.bom td.n{text-align:right;font-family:var(--font-num)}
+.bom th.n{text-align:right}
+.bom tr.grp td{background:var(--panel-2);font-weight:700;padding-top:7px}
+.bom tr.grp td .sw{display:inline-block;vertical-align:-1px;margin-right:6px}
+.bom .code{font-family:var(--font-num)}
+.bom .empty{color:var(--muted);text-align:center;padding:18px 0}
+
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:18px;width:min(520px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(10,14,18,.45)}
+dialog h3{margin:0 0 12px;font-size:16px}
+dialog .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+dialog label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+dialog select,dialog input[type=number]{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:6px;color:var(--ink);font-family:var(--font-num)}
+dialog textarea{width:100%;height:220px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px;font-family:var(--font-num);font-size:11px;resize:vertical}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);grid-column:span 2}
+.toast{position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:13px;z-index:10;transition:opacity .2s}
+
+@media (max-width:980px){
+  .app{height:auto}
+  .main{grid-template-columns:1fr;grid-auto-rows:auto}
+  .view{height:62svh;min-height:340px;order:-1}
+  .side.left,.side.right{border:none;border-top:1px solid var(--line);overflow:visible}
+}
+@media (prefers-reduced-motion: reduce){ .switch::after,.toast{transition:none} }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="stripe" aria-hidden="true"></span><h1>足場設計 3D</h1><small>くさび式 Aタイプ</small></div>
+    <button class="btn" id="btnUndo" title="元に戻す (Ctrl+Z)">元に戻す</button>
+    <button class="btn" id="btnRedo" title="やり直し (Ctrl+Y)">やり直し</button>
+    <button class="btn" id="btnFit" title="全体表示 (F)">全体表示</button>
+    <button class="btn primary" id="btnGen">一括作成</button>
+    <button class="btn" id="btnData">データ入出力</button>
+    <button class="btn danger" id="btnClear">全消去</button>
+  </header>
+
+  <div class="main">
+    <aside class="side left" aria-label="部材とツール">
+      <section class="sec">
+        <h2>ツール</h2>
+        <div class="tools" id="tools"></div>
+      </section>
+      <section class="sec">
+        <h2 id="specTitle">規格</h2>
+        <div class="specs" id="specs"></div>
+      </section>
+      <section class="sec">
+        <h2>配置</h2>
+        <div class="snaprow">
+          <div><b>スナップ</b><div class="hint" style="margin:0">コマ・接合部に吸着 <kbd style="font-family:var(--font-num)">S</kbd></div></div>
+          <button class="switch" id="snapSw" role="switch" aria-checked="true" aria-label="スナップ"></button>
+        </div>
+        <div class="field" id="fGrid"><span>グリッド間隔</span>
+          <select id="gridSel"><option value="150">150 mm</option><option value="300" selected>300 mm</option><option value="450">450 mm</option><option value="600">600 mm</option><option value="900">900 mm</option></select></div>
+        <div class="field off" id="fHeight"><span>作業高さ（OFF時）</span><input id="workH" type="number" step="50" value="0" min="0"></div>
+        <div class="field off" id="fRot"><span>回転（OFF時）<kbd style="font-family:var(--font-num)">R</kbd></span><input id="rotDeg" type="number" step="15" value="0"></div>
+        <p class="hint" id="snapHint">ON：支柱はジャッキ・支柱の上に、手摺・踏板・階段はコマに差し込みます。OFF：作業高さの平面上に自由配置します。</p>
+      </section>
+      <section class="sec">
+        <h2>操作</h2>
+        <div class="keys">
+          <kbd>左ドラッグ</kbd><span>回転</span>
+          <kbd>右ドラッグ</kbd><span>平行移動</span>
+          <kbd>ホイール</kbd><span>ズーム</span>
+          <kbd>クリック</kbd><span>配置／選択</span>
+          <kbd>Delete</kbd><span>選択部材を削除</span>
+          <kbd>Esc</kbd><span>選択ツールへ</span>
+        </div>
+      </section>
+    </aside>
+
+    <div class="view" id="view">
+      <div class="overlay">
+        <div class="msg" id="msg">読み込み中…</div>
+        <div class="pill on" id="snapPill"><span class="dot"></span><span id="snapPillTxt">スナップ ON</span></div>
+      </div>
+    </div>
+
+    <aside class="side right" aria-label="拾い出し">
+      <section class="sec">
+        <h2>使用部材の合計</h2>
+        <div class="totals">
+          <div class="total"><div class="lbl">総数量</div><div class="val" id="totQty">0<small>点</small></div></div>
+          <div class="total weight"><div class="lbl">総重量</div><div class="val" id="totKg">0<small>kg</small></div></div>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="dims" id="dims"></div>
+      </section>
+      <section class="sec">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h2 style="margin:0">拾い出し表</h2>
+          <button class="btn" id="btnCsv" style="padding:3px 9px;font-size:12px">表をコピー</button>
+        </div>
+        <div class="bomwrap"><table class="bom" id="bom"></table></div>
+        <p class="hint">重量は「参考」フォルダの国産くさび式足場Aタイプ（足場JAPAN掲載値）の単重から計算しています。</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<dialog id="dlgGen">
+  <form method="dialog" id="genForm">
+    <h3>一括作成</h3>
+    <div class="grid">
+      <label>桁方向スパン数<input type="number" id="gSpans" min="1" max="20" value="4"></label>
+      <label>スパン長（桁方向）<select id="gSpan"><option>1800</option><option>1200</option><option>900</option><option>600</option></select></label>
+      <label>建地幅（妻方向）<select id="gWidth"><option>600</option><option selected>900</option><option>1200</option></select></label>
+      <label>段数（1段=1800）<input type="number" id="gLevels" min="1" max="8" value="2"></label>
+      <label>踏板幅<select id="gBoard"><option>400</option><option>250</option></select></label>
+      <label>作成方法<select id="gMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
+      <label class="check"><input type="checkbox" id="gStair" checked>端部スパンに階段を入れる（スパン1800のとき）</label>
+    </div>
+    <p class="hint">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgData">
+  <h3>データ入出力</h3>
+  <p class="hint" style="margin-top:0">図面データ（JSON）です。コピーして保存し、あとで貼り付けて読み込めます。ファイル（.json）からも読み込めます。</p>
+  <textarea id="dataTxt" spellcheck="false"></textarea>
+  <div class="row">
+    <label class="btn" style="flex-direction:row;color:var(--ink)">ファイルを読み込む<input type="file" id="dataFile" accept=".json,application/json" hidden></label>
+    <button class="btn" id="dataCopy">コピー</button>
+    <button class="btn primary" id="dataLoad">貼り付けた内容を読み込む</button>
+    <button class="btn" id="dataClose">閉じる</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ===== 部材カタログ（参考: 国産くさび式足場Aタイプ） ===== */
+const CATALOG = {
+  post: [
+    {code:'KSA-36', L:3600, kg:13.1}, {code:'KSA-27', L:2700, kg:10.1}, {code:'KSA-18', L:1800, kg:6.8},
+    {code:'KSA-09', L:900, kg:3.7}, {code:'KSA-072', L:720, kg:3.2}, {code:'KSA-045', L:450, kg:2.1}],
+  board: [
+    {code:'KSD-4018', W:400, L:1800, kg:13.2}, {code:'KSD-4012', W:400, L:1200, kg:9.4},
+    {code:'KSD-4009', W:400, L:900, kg:6.6}, {code:'KSD-4006', W:400, L:600, kg:5.2},
+    {code:'KSD-2518', W:250, L:1800, kg:9.0}, {code:'KSD-2512', W:250, L:1200, kg:6.6},
+    {code:'KSD-2509', W:250, L:900, kg:5.0}, {code:'KSD-2506', W:250, L:600, kg:3.9},
+    {code:'KSD-2504', W:250, L:400, kg:3.1}],
+  ledger: [
+    {code:'KSC-18', L:1800, kg:4.3}, {code:'KSC-12', L:1200, kg:2.9}, {code:'KSC-09', L:900, kg:2.2},
+    {code:'KSC-06', L:600, kg:1.6}, {code:'KSC-04', L:400, kg:1.2}, {code:'KSC-03', L:300, kg:1.1},
+    {code:'KSC-02', L:200, kg:0.8}],
+  jack: [
+    {code:'KSE-6', kg:2.7, spec:'φ38.1×600'}, {code:'KSE-6S', kg:2.9, spec:'φ38.1×600'},
+    {code:'KSE-6P', kg:2.1, spec:'φ38.1×600'}],
+  stair: [
+    {code:'KSH-1818', kg:18.5, spec:'鋼製 1800×1800'}, {code:'KSH-1818AL', kg:11.9, spec:'アルミ 1800×1800'}],
+};
+const TYPES = ['post','board','ledger','jack','stair'];
+const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段'};
+const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5'};
+const ITEM = {};
+for (const t of TYPES) for (const it of CATALOG[t]) { it.type = t; ITEM[it.code] = it; }
+const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' ? `${it.W}×${it.L}`
+  : it.type==='ledger' ? `Φ42.7×${it.L}` : it.spec;
+
+const KOMA = 0.45;        // コマ間隔 450mm
+const JACK_H = 0.25;      // ジャッキベース上端（支柱の受け）高さ
+const STAIR_RUN = 1.8, STAIR_RISE = 1.8, STAIR_W = 0.40;
+const EDGE_GAP = 0.03;    // 支柱芯から踏板端まで
+const SNAP_PX = 30;
+
+/* ===== 状態 ===== */
+const state = {
+  tool: 'select',
+  code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818'},
+  snap: true, grid: 0.3, workH: 0, rot: 0,
+  parts: [], nextId: 1, selected: null,
+};
+let undoStack = [], redoStack = [];
+
+/* ===== DOM ===== */
+const $ = id => document.getElementById(id);
+const view = $('view');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ===== Three.js ===== */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 500);
+camera.position.set(9, 7, 11);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(3, 1.5, 0.5);
+controls.enableDamping = true;
+controls.dampingFactor = 0.12;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(6, 12, 8); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xffffff, 0.5); sun2.position.set(-8, 5, -6); scene.add(sun2);
+
+let gridHelper = null;
+const partsGroup = new THREE.Group(); scene.add(partsGroup);
+const ghostGroup = new THREE.Group(); scene.add(ghostGroup);
+const meshById = new Map();
+
+const MAT = {};
+const ghostMat = new THREE.MeshBasicMaterial({transparent:true, opacity:.55, depthWrite:false});
+const edgeMat = new THREE.LineBasicMaterial({color:0x000000, transparent:true, opacity:.25});
+function applyTheme(){
+  scene.background = new THREE.Color(css('--scene'));
+  const mk = (v, o={}) => new THREE.MeshStandardMaterial({color:new THREE.Color(css(v)), metalness:.35, roughness:.55, ...o});
+  const old = {...MAT};
+  Object.assign(MAT, {
+    post: mk('--c-post', {metalness:.55, roughness:.4}), koma: mk('--c-post', {metalness:.3, roughness:.7}),
+    board: mk('--c-board'), ledger: mk('--c-ledger'), jack: mk('--c-jack'),
+    handle: mk('--c-stair'), stair: mk('--c-stair'),
+  });
+  MAT.koma.color.multiplyScalar(.7);
+  for (const m of Object.values(old)) m.dispose();
+  buildGrid();
+  rebuildAll();
+}
+function buildGrid(){
+  if (gridHelper) { scene.remove(gridHelper); gridHelper.geometry.dispose(); }
+  const div = 120;
+  gridHelper = new THREE.GridHelper(state.grid * div, div, new THREE.Color(css('--grid-major')), new THREE.Color(css('--grid-minor')));
+  gridHelper.position.y = -0.001;
+  scene.add(gridHelper);
+}
+
+/* ジオメトリはキャッシュして共有 */
+const geoCache = new Map();
+const cylGeo = (r,h) => { const k=`c${r}|${h}`; if(!geoCache.has(k)) geoCache.set(k,new THREE.CylinderGeometry(r,r,h,14)); return geoCache.get(k); };
+const boxGeo = (x,y,z) => { const k=`b${x}|${y}|${z}`; if(!geoCache.has(k)) geoCache.set(k,new THREE.BoxGeometry(x,y,z)); return geoCache.get(k); };
+const edgeGeo = g => { const k='e'+g.uuid; if(!geoCache.has(k)) geoCache.set(k,new THREE.EdgesGeometry(g)); return geoCache.get(k); };
+
+function buildPart(part){
+  const it = ITEM[part.code];
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z, edges=false) => {
+    const m = new THREE.Mesh(geo, mat); m.position.set(x,y,z); g.add(m);
+    if (edges) { const l = new THREE.LineSegments(edgeGeo(geo), edgeMat); l.position.copy(m.position); l.userData.edge = true; g.add(l); }
+    return m;
+  };
+  const off = part.off || 0;
+  switch (part.type) {
+    case 'post': {
+      const L = it.L/1000;
+      add(cylGeo(.0243, L), MAT.post, 0, L/2, 0);
+      for (let k=1; k*KOMA <= L+1e-6; k++) add(cylGeo(.046, .028), MAT.koma, 0, k*KOMA, 0);
+      add(cylGeo(.019, .08), MAT.post, 0, L+.04, 0);
+      break;
+    }
+    case 'jack': {
+      add(boxGeo(.15,.008,.15), MAT.jack, 0, .004, 0, true);
+      add(cylGeo(.019, JACK_H), MAT.jack, 0, JACK_H/2, 0);
+      add(cylGeo(.042, .03), MAT.handle, 0, JACK_H-.07, 0);
+      break;
+    }
+    case 'ledger': {
+      const L = it.L/1000;
+      const tube = add(cylGeo(.02135, L-.05), MAT.ledger, L/2, 0, 0); tube.rotation.z = Math.PI/2;
+      add(boxGeo(.05,.07,.024), MAT.ledger, .03, 0, 0);
+      add(boxGeo(.05,.07,.024), MAT.ledger, L-.03, 0, 0);
+      break;
+    }
+    case 'board': {
+      const L = it.L/1000, W = it.W/1000;
+      add(boxGeo(L-.03, .04, W-.01), MAT.board, L/2, .02, off, true);
+      add(boxGeo(.04, .03, W-.04), MAT.jack, .03, .005, off);
+      add(boxGeo(.04, .03, W-.04), MAT.jack, L-.03, .005, off);
+      break;
+    }
+    case 'stair': {
+      const diag = Math.hypot(STAIR_RUN, STAIR_RISE), ang = Math.atan2(STAIR_RISE, STAIR_RUN);
+      for (const s of [-1,1]) {
+        const m = add(boxGeo(diag, .12, .03), MAT.stair, STAIR_RUN/2, STAIR_RISE/2, off + s*(STAIR_W/2-.015));
+        m.rotation.z = ang;
+      }
+      const n = 8;
+      for (let i=1; i<=n; i++) { const t=i/(n+1); add(boxGeo(.22,.03,STAIR_W-.04), MAT.stair, STAIR_RUN*t, STAIR_RISE*t, off, true); }
+      add(boxGeo(.08,.03,STAIR_W), MAT.jack, .04, .015, off);
+      add(boxGeo(.08,.03,STAIR_W), MAT.jack, STAIR_RUN-.04, STAIR_RISE+.015, off);
+      break;
+    }
+  }
+  g.position.set(part.p[0], part.p[1], part.p[2]);
+  g.rotation.y = part.rot || 0;
+  g.userData.partId = part.id;
+  return g;
+}
+
+/* ===== 幾何ヘルパ ===== */
+const dirOf = rot => new THREE.Vector3(Math.cos(rot), 0, -Math.sin(rot));   // ローカルX
+const sideOf = rot => new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));   // ローカルZ
+const V = p => new THREE.Vector3(p[0], p[1], p[2]);
+const keyOf = v => `${Math.round(v.x*100)},${Math.round(v.y*100)},${Math.round(v.z*100)}`;
+const lenOf = part => part.type==='stair' ? STAIR_RUN : (ITEM[part.code].L||0)/1000;
+function endsOf(part){
+  const S = V(part.p), d = dirOf(part.rot||0);
+  const E = S.clone().addScaledVector(d, lenOf(part));
+  if (part.type==='stair') E.y += STAIR_RISE;
+  return [S, E];
+}
+function signature(part){
+  if (part.type==='post' || part.type==='jack') return part.type + '@' + keyOf(V(part.p));
+  const [S,E] = endsOf(part);
+  const c = S.clone().add(E).multiplyScalar(.5).addScaledVector(sideOf(part.rot||0), part.off||0);
+  let a = Math.round(((part.rot||0) * 180/Math.PI) % 180); if (a<0) a+=180; if (a===180) a=0;
+  return `${part.type}@${keyOf(c)}#${a}`;
+}
+
+/* ===== 接合点（コマ・受け）の索引 ===== */
+let komaList = [], komaSet = new Set(), seatList = [], seatSet = new Set();
+function rebuildIndex(){
+  komaList = []; komaSet = new Set(); seatList = []; seatSet = new Set();
+  const bottoms = new Set();
+  for (const p of state.parts) if (p.type==='post') bottoms.add(keyOf(V(p.p)));
+  for (const p of state.parts) {
+    if (p.type==='post') {
+      const L = ITEM[p.code].L/1000;
+      for (let k=1; k*KOMA <= L+1e-6; k++) { const v = new THREE.Vector3(p.p[0], p.p[1]+k*KOMA, p.p[2]); komaList.push(v); komaSet.add(keyOf(v)); }
+      const top = new THREE.Vector3(p.p[0], p.p[1]+L, p.p[2]);
+      seatSet.add(keyOf(top)); if (!bottoms.has(keyOf(top))) seatList.push(top);
+    } else if (p.type==='jack') {
+      const top = new THREE.Vector3(p.p[0], JACK_H, p.p[2]);
+      seatSet.add(keyOf(top)); if (!bottoms.has(keyOf(top))) seatList.push(top);
+    }
+  }
+}
+function isConnected(part){
+  if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
+  if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
+  const [S,E] = endsOf(part);
+  return komaSet.has(keyOf(S)) && komaSet.has(keyOf(E));
+}
+
+/* 接合点マーカー */
+const markerMat = new THREE.PointsMaterial({size:9, sizeAttenuation:false, color:0x23884f, depthTest:false, transparent:true, opacity:.85});
+let markers = null;
+function updateMarkers(){
+  if (markers) { scene.remove(markers); markers.geometry.dispose(); markers = null; }
+  if (!state.snap) return;
+  const list = state.tool==='post' ? seatList : ['board','ledger','stair'].includes(state.tool) ? komaList : null;
+  if (!list || !list.length) return;
+  markerMat.color.set(css('--ok'));
+  const g = new THREE.BufferGeometry().setFromPoints(list);
+  markers = new THREE.Points(g, markerMat); markers.renderOrder = 5;
+  scene.add(markers);
+}
+
+/* ===== シーン同期 ===== */
+function rebuildAll(){
+  for (const g of meshById.values()) partsGroup.remove(g);
+  meshById.clear();
+  for (const p of state.parts) { const g = buildPart(p); meshById.set(p.id, g); partsGroup.add(g); }
+  refresh();
+}
+function refresh(){
+  rebuildIndex(); updateMarkers(); renderBom(); updateSelectionBox(); updateUndoButtons(); save();
+}
+function snapshot(){ return JSON.stringify(state.parts); }
+function pushHistory(){ undoStack.push(snapshot()); if (undoStack.length>200) undoStack.shift(); redoStack = []; }
+function restore(json){ state.parts = JSON.parse(json); state.nextId = state.parts.reduce((m,p)=>Math.max(m,p.id),0)+1; state.selected = null; rebuildAll(); }
+function undo(){ if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); toast('元に戻しました'); }
+function redo(){ if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); toast('やり直しました'); }
+function updateUndoButtons(){ $('btnUndo').disabled = !undoStack.length; $('btnRedo').disabled = !redoStack.length; }
+
+function addPart(part, record=true){
+  if (record) pushHistory();
+  part.id = state.nextId++;
+  state.parts.push(part);
+  const g = buildPart(part); meshById.set(part.id, g); partsGroup.add(g);
+  if (record) refresh();
+}
+function removePart(id){
+  pushHistory();
+  state.parts = state.parts.filter(p => p.id !== id);
+  const g = meshById.get(id); if (g) partsGroup.remove(g); meshById.delete(id);
+  if (state.selected === id) state.selected = null;
+  refresh();
+}
+
+/* 選択枠 */
+let selBox = null, hoverBox = null;
+function updateSelectionBox(){
+  if (selBox) { scene.remove(selBox); selBox = null; }
+  const g = state.selected && meshById.get(state.selected);
+  if (g) { selBox = new THREE.BoxHelper(g, new THREE.Color(css('--accent'))); scene.add(selBox); }
+}
+function setHover(g, color){
+  if (hoverBox) { scene.remove(hoverBox); hoverBox = null; }
+  if (g) { hoverBox = new THREE.BoxHelper(g, new THREE.Color(color)); scene.add(hoverBox); }
+}
+
+/* ===== 配置計算 ===== */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let lastDir = 0;
+function setRay(ev){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left)/r.width)*2-1, -((ev.clientY - r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc, camera);
+}
+function rayPlane(y){
+  const pl = new THREE.Plane(new THREE.Vector3(0,1,0), -y);
+  const out = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(pl, out) ? out : null;
+}
+function nearestScreen(list, ev, maxPx){
+  const r = renderer.domElement.getBoundingClientRect();
+  const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  let best = null, bd = maxPx*maxPx; const v = new THREE.Vector3();
+  for (const p of list) {
+    v.copy(p).project(camera);
+    if (v.z > 1) continue;
+    const sx = (v.x+1)/2*r.width, sy = (1-v.y)/2*r.height;
+    const d = (sx-mx)**2 + (sy-my)**2;
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+const snapGrid = v => new THREE.Vector3(Math.round(v.x/state.grid)*state.grid, v.y, Math.round(v.z/state.grid)*state.grid);
+const r4 = x => Math.round(x*10000)/10000;
+
+function computePlacement(ev){
+  setRay(ev);
+  const t = state.tool, code = state.code[t], it = ITEM[code];
+  const mk = (p, rot, off, status, msg) => ({part:{type:t, code, p:[r4(p.x), r4(p.y), r4(p.z)], rot, off}, status, msg});
+  if (t === 'jack') {
+    const hit = rayPlane(0); if (!hit) return null;
+    const p = state.snap ? snapGrid(hit) : hit; p.y = 0;
+    return mk(p, 0, 0, state.snap ? 'ok' : 'free', `ジャッキベース ${code} を地面に配置`);
+  }
+  if (t === 'post') {
+    if (state.snap) {
+      const seat = nearestScreen(seatList, ev, SNAP_PX);
+      if (seat) return mk(seat, 0, 0, 'ok', `${code} を${seat.y <= JACK_H+1e-3 ? 'ジャッキベース' : '下の支柱'}に差し込み`);
+      const hit = rayPlane(0); if (!hit) return null;
+      const p = snapGrid(hit); p.y = 0;
+      return mk(p, 0, 0, 'warn', 'ジャッキベースがありません（地面に直置き）');
+    }
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    const res = mk(hit, 0, 0, 'free', '自由配置');
+    if (seatSet.has(keyOf(hit))) res.status = 'ok';
+    return res;
+  }
+  // 手摺・踏板・階段
+  let S, rot, off = 0;
+  const W = t==='board' ? it.W/1000 : t==='stair' ? STAIR_W : 0;
+  if (state.snap) {
+    const k = nearestScreen(komaList, ev, SNAP_PX);
+    if (!k) {
+      const hit = rayPlane(state.workH);
+      return {part:null, status:'bad', msg: komaList.length ? '支柱のコマ（緑の点）にカーソルを合わせてください' : '先に支柱を立ててください（スナップON時はコマに差し込みます）', hit};
+    }
+    S = k.clone();
+    const hit = rayPlane(S.y);
+    if (hit && hit.distanceTo(S) > .05) {
+      const d = hit.clone().sub(S);
+      rot = Math.abs(d.x) >= Math.abs(d.z) ? (d.x >= 0 ? 0 : Math.PI) : (d.z >= 0 ? -Math.PI/2 : Math.PI/2);
+      lastDir = rot;
+      if (W) {
+        const dd = d.dot(sideOf(rot));
+        const slot = Math.min(Math.floor(Math.abs(dd)/W), t==='stair' ? 2 : 4);
+        off = (dd >= 0 ? 1 : -1) * (EDGE_GAP + W*(slot+.5));
+      }
+    } else { rot = lastDir; if (W) off = EDGE_GAP + W/2; }
+  } else {
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    S = hit; rot = state.rot * Math.PI/180;
+  }
+  const res = mk(S, r4(rot), r4(off), 'ok', '');
+  const [s,e] = endsOf(res.part);
+  const okS = komaSet.has(keyOf(s)), okE = komaSet.has(keyOf(e));
+  if (okS && okE) { res.status = 'ok'; res.msg = `${LABEL[t]} ${code}：両端がコマに接続`; }
+  else if (state.snap) { res.status = 'warn'; res.msg = `${LABEL[t]} ${code}：${t==='stair' ? '上端' : '先端'}に接続するコマがありません`; }
+  else { res.status = (okS||okE) ? 'warn' : 'free'; res.msg = `自由配置（${okS||okE ? '片側のみ接続' : '未接続'}）`; }
+  return res;
+}
+
+/* ゴースト表示 */
+let ghostKey = '', ghostObj = null, lastPlacement = null;
+function showGhost(pl){
+  if (!pl || !pl.part) { ghostGroup.visible = false; return; }
+  const k = pl.part.code + '|' + pl.part.off;
+  if (k !== ghostKey) {
+    if (ghostObj) ghostGroup.remove(ghostObj);
+    ghostObj = buildPart(pl.part);
+    ghostObj.traverse(o => { if (o.isMesh) o.material = ghostMat; if (o.userData.edge) o.visible = false; });
+    ghostGroup.add(ghostObj); ghostKey = k;
+  }
+  ghostObj.position.set(...pl.part.p); ghostObj.rotation.y = pl.part.rot;
+  ghostMat.color.set(css(pl.status==='ok' ? '--ok' : pl.status==='warn' ? '--warn' : pl.status==='bad' ? '--bad' : '--accent'));
+  ghostGroup.visible = true;
+}
+
+/* ===== ピック ===== */
+function pick(ev){
+  setRay(ev);
+  const hits = raycaster.intersectObjects(partsGroup.children, true);
+  for (const h of hits) { let o = h.object; while (o && o.userData.partId === undefined) o = o.parent; if (o) return o.userData.partId; }
+  return null;
+}
+
+/* ===== メッセージ ===== */
+function setMsg(html, cls=''){ const m = $('msg'); m.innerHTML = html; m.className = 'msg ' + cls; }
+function defaultMsg(){
+  const t = state.tool;
+  if (t==='select') {
+    const p = state.selected && state.parts.find(x=>x.id===state.selected);
+    if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}・${it.kg}kg）　Deleteで削除`); }
+    else setMsg('部材をクリックで選択。左の棚から部材を選ぶと配置できます。');
+  } else if (t==='delete') setMsg('クリックした部材を削除します。');
+  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
+}
+
+/* ===== 入力 ===== */
+let downPos = null;
+const cvs = renderer.domElement;
+cvs.addEventListener('pointerdown', e => { downPos = {x:e.clientX, y:e.clientY, b:e.button}; });
+cvs.addEventListener('pointermove', e => {
+  if (e.buttons) return;
+  const t = state.tool;
+  if (t==='select' || t==='delete') {
+    const id = pick(e);
+    setHover(id ? meshById.get(id) : null, css(t==='delete' ? '--bad' : '--muted'));
+    cvs.style.cursor = id ? 'pointer' : '';
+    return;
+  }
+  const pl = computePlacement(e); lastPlacement = pl;
+  showGhost(pl);
+  if (pl) setMsg(pl.msg || '', pl.status==='ok' ? 'st-ok' : pl.status==='warn' ? 'st-warn' : pl.status==='bad' ? 'st-bad' : '');
+});
+cvs.addEventListener('pointerleave', () => { ghostGroup.visible = false; setHover(null); });
+cvs.addEventListener('pointerup', e => {
+  if (!downPos || e.button !== 0 || downPos.b !== 0) return;
+  if (Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y) > 5) return;
+  downPos = null;
+  const t = state.tool;
+  if (t==='select') { state.selected = pick(e); updateSelectionBox(); defaultMsg(); return; }
+  if (t==='delete') { const id = pick(e); if (id) { removePart(id); setHover(null); toast('削除しました'); } return; }
+  const pl = computePlacement(e);
+  if (!pl || !pl.part) { if (pl) setMsg(pl.msg, 'st-bad'); return; }
+  const sig = signature(pl.part);
+  if (state.parts.some(p => signature(p) === sig)) { setMsg('同じ位置にすでに部材があります', 'st-bad'); return; }
+  addPart(pl.part);
+  showGhost(computePlacement(e));
+});
+
+addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select,dialog')) return;
+  const k = e.key;
+  if ((e.ctrlKey||e.metaKey) && k.toLowerCase()==='z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey||e.metaKey) && k.toLowerCase()==='y') { e.preventDefault(); redo(); return; }
+  if (e.ctrlKey||e.metaKey||e.altKey) return;
+  if (k==='Delete' || k==='Backspace') { if (state.selected) { removePart(state.selected); defaultMsg(); toast('削除しました'); } return; }
+  if (k==='Escape') return setTool('select');
+  const lk = k.toLowerCase();
+  if (lk==='v') return setTool('select');
+  if (lk==='x') return setTool('delete');
+  if (lk==='s') return setSnap(!state.snap);
+  if (lk==='f') return fitView();
+  if (lk==='r') { state.rot = ((state.rot + (e.shiftKey ? -15 : 15)) % 360 + 360) % 360; $('rotDeg').value = state.rot; return; }
+  for (const t of TYPES) if (k===KEY[t]) return setTool(t);
+});
+
+/* ===== UI 構築 ===== */
+function renderTools(){
+  const el = $('tools'); el.innerHTML = '';
+  const mk = (id, label, kbd, sw) => {
+    const b = document.createElement('button');
+    b.className = 'tool'; b.dataset.tool = id; b.setAttribute('aria-pressed', state.tool===id);
+    b.innerHTML = (sw ? `<span class="sw" style="background:var(${sw})"></span>` : '') + `<span>${label}</span><kbd>${kbd}</kbd>`;
+    b.onclick = () => setTool(id);
+    el.appendChild(b);
+  };
+  mk('select','選択','V'); mk('delete','削除','X');
+  for (const t of TYPES) mk(t, LABEL[t], KEY[t], '--c-'+t);
+  const last = el.lastChild; last.classList.add('wide');
+}
+function renderSpecs(){
+  const t = TYPES.includes(state.tool) ? state.tool : null;
+  const el = $('specs'); el.innerHTML = '';
+  if (!t) { $('specTitle').textContent = '規格'; el.innerHTML = '<p class="hint" style="margin:0">部材ツールを選ぶと規格の一覧が出ます。</p>'; return; }
+  $('specTitle').textContent = LABEL[t] + 'の規格';
+  for (const it of CATALOG[t]) {
+    const b = document.createElement('button');
+    b.className = 'spec'; b.setAttribute('aria-pressed', state.code[t]===it.code);
+    b.innerHTML = `<span class="code">${it.code}</span><span class="dim">${specText(it)}</span><span class="kg">${it.kg.toFixed(1)}kg</span>`;
+    b.onclick = () => { state.code[t] = it.code; ghostKey=''; renderSpecs(); defaultMsg(); };
+    el.appendChild(b);
+  }
+}
+function setTool(t){
+  state.tool = t;
+  if (t!=='select') { state.selected = null; updateSelectionBox(); }
+  ghostGroup.visible = false; setHover(null); ghostKey = '';
+  for (const b of document.querySelectorAll('.tool')) b.setAttribute('aria-pressed', b.dataset.tool===t);
+  renderSpecs(); updateMarkers(); defaultMsg();
+}
+function setSnap(on){
+  state.snap = on;
+  $('snapSw').setAttribute('aria-checked', on);
+  $('snapPill').classList.toggle('on', on);
+  $('snapPillTxt').textContent = on ? 'スナップ ON' : 'スナップ OFF';
+  $('fGrid').classList.toggle('off', !on);
+  $('fHeight').classList.toggle('off', on);
+  $('fRot').classList.toggle('off', on);
+  ghostGroup.visible = false;
+  updateMarkers(); defaultMsg(); save();
+}
+$('snapSw').onclick = () => setSnap(!state.snap);
+$('gridSel').onchange = e => { state.grid = +e.target.value/1000; buildGrid(); save(); };
+$('workH').onchange = e => { state.workH = Math.max(0, +e.target.value||0)/1000; };
+$('rotDeg').onchange = e => { state.rot = +e.target.value||0; };
+
+/* ===== 拾い出し ===== */
+const fmtKg = x => x.toLocaleString('ja-JP', {minimumFractionDigits:1, maximumFractionDigits:1});
+function bomData(){
+  const by = new Map();
+  for (const p of state.parts) by.set(p.code, (by.get(p.code)||0) + 1);
+  const groups = [];
+  for (const t of TYPES) {
+    const rows = CATALOG[t].filter(it => by.get(it.code)).map(it => ({it, qty:by.get(it.code), kg:by.get(it.code)*it.kg}));
+    if (rows.length) groups.push({t, rows, qty:rows.reduce((a,r)=>a+r.qty,0), kg:rows.reduce((a,r)=>a+r.kg,0)});
+  }
+  return groups;
+}
+function renderBom(){
+  const groups = bomData();
+  const qty = groups.reduce((a,g)=>a+g.qty,0), kg = groups.reduce((a,g)=>a+g.kg,0);
+  $('totQty').innerHTML = `${qty.toLocaleString('ja-JP')}<small>点</small>`;
+  $('totKg').innerHTML = kg >= 1000 ? `${(kg/1000).toFixed(2)}<small>t（${fmtKg(kg)}kg）</small>` : `${fmtKg(kg)}<small>kg</small>`;
+  const bad = state.parts.filter(p => !isConnected(p)).length;
+  $('chips').innerHTML = groups.map(g => `<span class="chip"><span class="sw" style="background:var(--c-${g.t})"></span>${LABEL[g.t]} ${g.qty}</span>`).join('')
+    + (state.parts.length ? (bad ? `<span class="chip warn">未接続 ${bad}</span>` : `<span class="chip ok">すべて接続済み</span>`) : '');
+  if (state.parts.length) {
+    const b = new THREE.Box3().setFromObject(partsGroup); const s = b.getSize(new THREE.Vector3());
+    $('dims').textContent = `外形 約 ${Math.round(s.x*1000)} × ${Math.round(s.z*1000)} × H${Math.round(s.y*1000)} mm`;
+  } else $('dims').textContent = '';
+  const tb = $('bom');
+  if (!groups.length) { tb.innerHTML = '<tr><td class="empty">部材がまだありません</td></tr>'; return; }
+  let h = '<thead><tr><th>品番</th><th>規格</th><th class="n">数量</th><th class="n">重量kg</th></tr></thead><tbody>';
+  for (const g of groups) {
+    h += `<tr class="grp"><td colspan="2"><span class="sw" style="background:var(--c-${g.t})"></span>${LABEL[g.t]}</td><td class="n">${g.qty}</td><td class="n">${fmtKg(g.kg)}</td></tr>`;
+    for (const r of g.rows) h += `<tr><td class="code">${r.it.code}</td><td>${specText(r.it)}<br><span style="color:var(--muted)">@${r.it.kg.toFixed(1)}kg</span></td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td></tr>`;
+  }
+  h += `</tbody><tfoot><tr><td colspan="2"><b>合計</b></td><td class="n"><b>${qty}</b></td><td class="n"><b>${fmtKg(kg)}</b></td></tr></tfoot>`;
+  tb.innerHTML = h;
+}
+$('btnCsv').onclick = () => {
+  const groups = bomData();
+  const lines = ['区分\t品番\t規格\t数量\t単重(kg)\t重量(kg)'];
+  let q=0, w=0;
+  for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg, r.kg.toFixed(1)].join('\t')); q+=r.qty; w+=r.kg; }
+  lines.push(['合計','','',q,'',w.toFixed(1)].join('\t'));
+  copyText(lines.join('\n'), '拾い出し表をコピーしました（Excelに貼り付けできます）');
+};
+
+/* ===== 一括作成 ===== */
+const LEDGER_BY_L = {1800:'KSC-18',1200:'KSC-12',900:'KSC-09',600:'KSC-06',400:'KSC-04'};
+function generate({spans, span, width, levels, board, stair}){
+  const out = [];
+  const s = span/1000, w = width/1000, n = spans;
+  const yf = i => JACK_H + KOMA*4*i;
+  const need = 1800*levels + 900;
+  const postSeq = []; let rest = need;
+  for (const L of [3600,2700,1800,900,450]) while (rest >= L) { postSeq.push(L); rest -= L; }
+  if (rest > 0) postSeq.push(450);
+  const postCode = {3600:'KSA-36',2700:'KSA-27',1800:'KSA-18',900:'KSA-09',450:'KSA-045'};
+  const xs = Array.from({length:n+1}, (_,i)=>i*s), zs = [0, w];
+  for (const x of xs) for (const z of zs) {
+    out.push({type:'jack', code:state.code.jack, p:[x,0,z], rot:0, off:0});
+    let y = JACK_H;
+    for (const L of postSeq) { out.push({type:'post', code:postCode[L], p:[x,r4(y),z], rot:0, off:0}); y += L/1000; }
+  }
+  const lx = LEDGER_BY_L[span], lz = LEDGER_BY_L[width];
+  const X = (x,y,z) => out.push({type:'ledger', code:lx, p:[r4(x),r4(y),r4(z)], rot:0, off:0});
+  const Z = (x,y) => out.push({type:'ledger', code:lz, p:[r4(x),r4(y),0], rot:r4(-Math.PI/2), off:0});
+  // 根がらみ
+  for (let j=0;j<n;j++) for (const z of zs) X(j*s, JACK_H+KOMA, z);
+  for (const x of xs) Z(x, JACK_H+KOMA);
+  const Wb = board/1000, lanes = Math.max(1, Math.floor((w - 2*EDGE_GAP)/Wb));
+  const bcode = `KSD-${board===400?'40':'25'}${String(span/100).padStart(2,'0')}`;
+  const useStair = stair && span===1800 && levels>=2;
+  for (let i=1;i<=levels;i++) {
+    const y = yf(i);
+    for (let j=0;j<n;j++) for (const z of zs) X(j*s, y, z);
+    for (const x of xs) Z(x, y);
+    for (let j=0;j<n;j++) for (let l=0;l<lanes;l++) {
+      if (useStair && j===n-1 && l===0 && i>=2) continue;  // 階段の開口
+      out.push({type:'board', code:bcode, p:[r4(j*s),r4(y),0], rot:0, off:r4(EDGE_GAP + Wb*(l+.5))});
+    }
+    for (let j=0;j<n;j++) { X(j*s, y+KOMA, w); X(j*s, y+2*KOMA, w); }
+    for (const x of [0, n*s]) { Z(x, y+KOMA); Z(x, y+2*KOMA); }
+    if (useStair && i<levels) out.push({type:'stair', code:state.code.stair, p:[r4((n-1)*s),r4(y),0], rot:0, off:r4(EDGE_GAP+STAIR_W/2)});
+  }
+  return out;
+}
+$('btnGen').onclick = () => $('dlgGen').showModal();
+$('genForm').addEventListener('submit', e => {
+  if (e.submitter && e.submitter.value !== 'ok') return;
+  const opt = {spans:Math.max(1,Math.min(20,+$('gSpans').value||1)), span:+$('gSpan').value, width:+$('gWidth').value,
+    levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked};
+  pushHistory();
+  if ($('gMode').value==='replace') { state.parts = []; state.selected = null; }
+  const sigs = new Set(state.parts.map(signature));
+  for (const p of generate(opt)) { const sg = signature(p); if (!sigs.has(sg)) { sigs.add(sg); addPart(p, false); } }
+  rebuildAll(); fitView(); toast('一括作成しました');
+});
+
+/* ===== データ入出力 ===== */
+$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:1, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
+$('dataClose').onclick = () => $('dlgData').close();
+$('dataCopy').onclick = () => copyText($('dataTxt').value, '図面データをコピーしました');
+$('dataLoad').onclick = () => loadJson($('dataTxt').value);
+$('dataFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('dataTxt').value = r.result; loadJson(r.result); }; r.readAsText(f); e.target.value=''; };
+function loadJson(txt){
+  let data; try { data = JSON.parse(txt); } catch { toast('JSONとして読み込めません。内容を確認してください'); return; }
+  const arr = Array.isArray(data) ? data : data.parts;
+  if (!Array.isArray(arr)) { toast('parts 配列が見つかりません'); return; }
+  const parts = [];
+  for (const p of arr) {
+    const it = ITEM[p && p.code];
+    if (!it || !Array.isArray(p.p) || p.p.length!==3 || !p.p.every(Number.isFinite)) continue;
+    parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0});
+  }
+  pushHistory();
+  state.parts = parts.map((p,i)=>({...p, id:i+1})); state.nextId = parts.length+1; state.selected = null;
+  rebuildAll(); fitView(); $('dlgData').close();
+  toast(`${parts.length} 点を読み込みました` + (parts.length<arr.length ? `（不明な部材 ${arr.length-parts.length} 点を除外）` : ''));
+}
+
+/* ===== 全消去（二度押し確認） ===== */
+let clearArm = 0;
+$('btnClear').onclick = () => {
+  const b = $('btnClear');
+  if (Date.now() - clearArm > 3000) { clearArm = Date.now(); b.textContent = 'もう一度押すと消去'; setTimeout(()=>{ b.textContent='全消去'; }, 3000); return; }
+  clearArm = 0; b.textContent = '全消去';
+  pushHistory(); state.parts = []; state.selected = null; rebuildAll(); toast('すべて消去しました（元に戻すで復元できます）');
+};
+$('btnUndo').onclick = undo; $('btnRedo').onclick = redo; $('btnFit').onclick = fitView;
+
+/* ===== 共通 ===== */
+let toastT;
+function toast(t){ const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(()=>{ el.hidden = true; }, 2200); }
+function copyText(t, okMsg){
+  const fallback = () => { const ta = $('dataTxt'); if ($('dlgData').open) { ta.select(); } toast('コピーできませんでした。選択してCtrl+Cでコピーしてください'); };
+  try { navigator.clipboard.writeText(t).then(()=>toast(okMsg), fallback); } catch { fallback(); }
+}
+function fitView(){
+  if (!state.parts.length) { controls.target.set(0,0,0); camera.position.set(6,5,8); return; }
+  const b = new THREE.Box3().setFromObject(partsGroup);
+  const c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length()/2;
+  const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  const dist = r / Math.sin(Math.min(vf, hf)/2) * 1.05;
+  const dir = new THREE.Vector3(0.55, 0.45, 0.85).normalize();
+  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, dist);
+}
+const STORE = 'ashiba3d.v1';
+function save(){ try { localStorage.setItem(STORE, JSON.stringify({parts:state.parts, snap:state.snap, grid:state.grid})); } catch {} }
+function load(){ try { const d = JSON.parse(localStorage.getItem(STORE)); if (d && Array.isArray(d.parts)) return d; } catch {} return null; }
+
+function resize(){
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w/Math.max(h,1); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+/* ===== 起動 ===== */
+const saved = load();
+if (saved) {
+  state.parts = saved.parts.filter(p => ITEM[p.code]);
+  state.nextId = state.parts.reduce((m,p)=>Math.max(m,p.id||0),0)+1;
+  state.parts.forEach((p,i)=>{ if(!p.id) p.id = state.nextId++; });
+  if (typeof saved.grid==='number') { state.grid = saved.grid; $('gridSel').value = String(Math.round(saved.grid*1000)); }
+}
+renderTools(); renderSpecs();
+applyTheme();
+if (!saved) {
+  for (const p of generate({spans:4, span:1800, width:900, levels:2, board:400, stair:true})) addPart(p, false);
+  rebuildAll();
+  toast('サンプルの足場（4スパン×2段）を表示しています');
+}
+setSnap(saved ? saved.snap !== false : true);
+resize(); fitView(); defaultMsg();
+renderer.setAnimationLoop(() => { controls.update(); if (selBox) selBox.update(); renderer.render(scene, camera); });
+</script>
