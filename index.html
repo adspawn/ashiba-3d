@@ -171,7 +171,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
           <select id="gridSel"><option value="150">150 mm</option><option value="300" selected>300 mm</option><option value="450">450 mm</option><option value="600">600 mm</option><option value="900">900 mm</option></select></div>
         <div class="field off" id="fHeight"><span>作業高さ（OFF時）</span><input id="workH" type="number" step="50" value="0" min="0"></div>
         <div class="field off" id="fRot"><span>回転（OFF時）<kbd style="font-family:var(--font-num)">R</kbd></span><input id="rotDeg" type="number" step="15" value="0"></div>
-        <p class="hint" id="snapHint">ON：支柱はジャッキ・支柱の上に、手摺・階段はコマに差し込み、踏板と合板は手摺に掛けます。OFF：作業高さの平面上に自由配置します。</p>
+        <p class="hint" id="snapHint">ON：支柱はジャッキ・支柱の上に、手摺はコマに差し込み、踏板・階段・合板は手摺に掛けます。OFF：作業高さの平面上に自由配置します。</p>
       </section>
       <section class="sec">
         <h2>操作</h2>
@@ -500,7 +500,7 @@ function isConnected(part){
   if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
   if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
   if (part.type==='panel') return hooksOnRail(part) === HOOKS_PER_PANEL;
-  if (part.type==='board') return boardSupported(part).every(Boolean);
+  if (part.type==='board' || part.type==='stair') return hangSupported(part).every(Boolean);
   const [S,E] = endsOf(part);
   return komaSet.has(keyOf(S)) && komaSet.has(keyOf(E));
 }
@@ -540,7 +540,7 @@ let markers = null;
 function updateMarkers(){
   if (markers) { scene.remove(markers); markers.geometry.dispose(); markers = null; }
   if (!state.snap) return;
-  const list = state.tool==='post' ? seatList : ['ledger','stair'].includes(state.tool) ? komaList : null;
+  const list = state.tool==='post' ? seatList : state.tool==='ledger' ? komaList : null;
   if (!list || !list.length) return;
   markerMat.color.set(css('--ok'));
   const g = new THREE.BufferGeometry().setFromPoints(list);
@@ -632,38 +632,50 @@ function hoverLedger(ev){
   const m = nearestScreen(mids, ev, 45);
   return m ? lgs[mids.indexOf(m)] : null;
 }
-/* 踏板を掛けられる空き区画の一覧（手摺の組と踏板の規格から求める） */
+/* 手摺に掛ける部材（踏板・階段）：渡す長さ・上がる高さ・幅 */
+const hangDims = (type, code) => type==='stair'
+  ? {L:STAIR_RUN, rise:STAIR_RISE, W:STAIR_W}
+  : {L:ITEM[code].L/1000, rise:0, W:ITEM[code].W/1000};
+/* 両端（フック位置）の中心点。階段は先端が rise だけ高い */
+function hangEnds(part){
+  const {L, rise} = hangDims(part.type, part.code);
+  const c0 = V(part.p).addScaledVector(sideOf(part.rot||0), part.off||0);
+  const c1 = c0.clone().addScaledVector(dirOf(part.rot||0), L); c1.y += rise;
+  return [c0, c1];
+}
+/* 両端が手摺に掛かっているか（手摺は部材と直交） */
+const hangSupported = part => hangEnds(part).map(c => onRail(c, (part.rot||0) + Math.PI/2));
+/* 手摺 lg を下端として、区画 k・向き sg に置いたときの部材 */
+function hangOn(type, code, lg, k, sg){
+  const {W} = hangDims(type, code);
+  const [A,B] = endsOf(lg), u = B.clone().sub(A).normalize();
+  const d = new THREE.Vector3(-u.z, 0, u.x).multiplyScalar(sg), rot = Math.atan2(-d.z, d.x);
+  const off = (EDGE_GAP + W*(k + .5)) * Math.sign(sideOf(rot).dot(u));
+  return {type, code, p:[r4(A.x), r4(A.y), r4(A.z)], rot:r4(rot), off:r4(off)};
+}
+const slotCount = (type, code, lg) => Math.floor((lenOf(lg) - 2*EDGE_GAP + 1e-6) / hangDims(type, code).W);
+
+/* 踏板・階段を掛けられる空き区画の一覧（手摺の組と部材の寸法から求める） */
 let slotCache = {ver:-1};
 let partsVer = 0;
-function boardSlots(code){
+function hangSlots(type, code){
   if (slotCache.ver === partsVer && slotCache.code === code) return slotCache.list;
-  const it = ITEM[code], L = it.L/1000, W = it.W/1000, list = [];
-  const used = new Set(state.parts.filter(p => p.type==='board').map(signature));
+  const list = [];
+  const used = new Set(state.parts.filter(p => p.type===type).map(signature));
   for (const lg of state.parts) {
     if (lg.type!=='ledger') continue;
-    const [A,B] = endsOf(lg), u = B.clone().sub(A), LL = u.length(); u.normalize();
-    const nrm = new THREE.Vector3(-u.z, 0, u.x);
-    const slots = Math.floor((LL - 2*EDGE_GAP + 1e-6) / W);
-    for (let k=0; k<slots; k++) for (const sg of [1,-1]) {
-      const d = nrm.clone().multiplyScalar(sg), rot = Math.atan2(-d.z, d.x);
-      const tAlong = EDGE_GAP + W*(k + .5);
-      const part = {type:'board', code, p:[r4(A.x), r4(A.y), r4(A.z)], rot:r4(rot), off:r4(tAlong * Math.sign(sideOf(rot).dot(u)))};
-      if (used.has(signature(part)) || !boardSupported(part)[1]) continue;
+    for (let k=0; k<slotCount(type, code, lg); k++) for (const sg of [1,-1]) {
+      const part = hangOn(type, code, lg, k, sg);
+      if (used.has(signature(part)) || !hangSupported(part)[1]) continue;
       used.add(signature(part));
-      const [c0, c1] = boardEnds(part);
+      const [c0, c1] = hangEnds(part);
       list.push({part, center: c0.add(c1).multiplyScalar(.5)});
     }
   }
   slotCache = {ver:partsVer, code, list};
   return list;
 }
-/* 踏板の両端（フック位置）の中心点 */
-function boardEnds(part){
-  const c0 = V(part.p).addScaledVector(sideOf(part.rot||0), part.off||0);
-  return [c0, c0.clone().addScaledVector(dirOf(part.rot||0), lenOf(part))];
-}
-/* 踏板の両端が手摺に掛かっているか（手摺は踏板と直交） */
-const boardSupported = part => boardEnds(part).map(c => onRail(c, (part.rot||0) + Math.PI/2));
+
 
 function computePlacement(ev){
   setRay(ev);
@@ -717,39 +729,36 @@ function computePlacement(ev){
     res.part.ori = state.panelOri;
     return res;
   }
-  if (t === 'board' && state.snap) {
+  if ((t === 'board' || t === 'stair') && state.snap) {
+    const nm = LABEL[t];
     // まず空いている区画（両端が手摺に掛かる位置）に吸着
-    const cands = boardSlots(code);
+    const cands = hangSlots(t, code);
     const c = nearestScreen(cands.map(x => x.center), ev, 70);
     if (c) {
       const hit = cands.find(x => x.center === c);
-      return {part:{...hit.part}, status:'ok', msg:`踏板 ${code}：手摺と手摺の間に掛けます`};
+      return {part:{...hit.part}, status:'ok', msg: t==='stair'
+        ? `階段 ${code}：下の手摺と1800上の手摺に掛けます` : `踏板 ${code}：手摺と手摺の間に掛けます`};
     }
     const lg = hoverLedger(ev);
-    if (!lg) return {part:null, status:'bad', msg:'踏板を掛ける手摺にカーソルを合わせてください（踏板は手摺と手摺の間に掛けます）'};
+    if (!lg) return {part:null, status:'bad', msg:`${nm}を掛ける手摺にカーソルを合わせてください（${nm}は手摺と手摺の間に掛けます）`};
     const [A,B] = endsOf(lg), u = B.clone().sub(A), LL = u.length(); u.normalize();
-    const L = it.L/1000, W = it.W/1000;
+    const {W} = hangDims(t, code);
     const nrm = new THREE.Vector3(-u.z, 0, u.x);
     const hit = rayPlane(A.y);
     const mid = A.clone().addScaledVector(u, LL/2);
-    // 手摺に沿って踏板幅ごとの区画に並べる
-    const slots = Math.max(1, Math.floor((LL - 2*EDGE_GAP + 1e-6) / W));
+    // 手摺に沿って部材幅ごとの区画に並べる
+    const slots = Math.max(1, slotCount(t, code, lg));
     const along = hit ? hit.clone().sub(A).dot(u) : LL/2;
     const k = Math.min(slots-1, Math.max(0, Math.floor((along - EDGE_GAP) / W)));
-    const tAlong = EDGE_GAP + W*(k + .5);
-    const make = sg => {
-      const d = nrm.clone().multiplyScalar(sg), rot = Math.atan2(-d.z, d.x);
-      const off = tAlong * Math.sign(sideOf(rot).dot(u));
-      return {type:t, code, p:[r4(A.x), r4(A.y), r4(A.z)], rot:r4(rot), off:r4(off)};
-    };
     // マウスのある側へ渡す。そちらに相手の手摺が無く、反対側にあれば反対側へ
     const want = hit && hit.clone().sub(mid).dot(nrm) < 0 ? -1 : 1;
-    let part = make(want);
-    if (!boardSupported(part)[1]) { const alt = make(-want); if (boardSupported(alt)[1]) part = alt; }
-    const ok = boardSupported(part)[1];
+    let part = hangOn(t, code, lg, k, want);
+    if (!hangSupported(part)[1]) { const alt = hangOn(t, code, lg, k, -want); if (hangSupported(alt)[1]) part = alt; }
+    const ok = hangSupported(part)[1];
     return {part, status: ok ? 'ok' : 'warn',
-      msg: ok ? `踏板 ${code}：手摺と手摺の間に掛けます（${k+1}/${slots}枚目の位置）`
-              : `踏板 ${code}：${it.L}mm 先に平行な手摺がありません（踏板の長さとスパンを合わせてください）`};
+      msg: ok ? `${nm} ${code}：手摺と手摺の間に掛けます（${k+1}/${slots}番目の位置）`
+        : t==='stair' ? `階段 ${code}：1800先・1800上に平行な手摺がありません（上の段の手摺が必要です）`
+        : `踏板 ${code}：${ITEM[code].L}mm 先に平行な手摺がありません（踏板の長さとスパンを合わせてください）`};
   }
   // 手摺・踏板・階段
   let S, rot, off = 0;
@@ -825,7 +834,7 @@ function defaultMsg(){
     if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}${p.type==='panel' ? '・'+oriOf(p).name : ''}・${it.kg}kg）　${p.type==='panel' ? 'Rで縦横切替　' : ''}Deleteで削除`); }
     else setMsg('部材をクリックで選択。左の棚から部材を選ぶと配置できます。');
   } else if (t==='delete') setMsg('クリックした部材を削除します。');
-  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? `${PANEL_ORI[state.panelOri].name}：手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（Rで縦横切替）` : t==='board' ? '踏板を掛ける手摺にカーソルを合わせ、渡す側へマウスを寄せてクリック（手摺と手摺の間に掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
+  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? `${PANEL_ORI[state.panelOri].name}：手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（Rで縦横切替）` : t==='board' ? '空いている区画か、踏板を掛ける手摺にカーソルを合わせてクリック（手摺と手摺の間に掛けます）' : t==='stair' ? '空いている区画か、階段の下端を掛ける手摺にカーソルを合わせてクリック（下の手摺と1800上の手摺に掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
 }
 
 /* ===== 入力 ===== */
