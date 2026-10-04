@@ -9,7 +9,7 @@
   --bg:#e9ecef; --panel:#f7f8f9; --panel-2:#eef1f3; --ink:#1c2229; --muted:#5b6571; --line:#d2d8de;
   --accent:#f2b705; --accent-ink:#1c2229; --ok:#23884f; --warn:#c85a14; --bad:#c22f2f;
   --scene:#dde3e8; --grid-major:#9aa6b2; --grid-minor:#c3cbd3;
-  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e; --c-pipe:#8d98a3; --c-clamp:#5f6873; --c-sheet:#a9bccb;
+  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e; --c-pipe:#8d98a3; --c-clamp:#5f6873; --c-sheet:#a9bccb; --c-building:#c7b79c;
   --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
   --font-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:light;
@@ -18,13 +18,13 @@
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66;
   color-scheme:dark; }
 
 html,body{height:100%}
@@ -115,6 +115,10 @@ button,select,input,textarea{font:inherit;color:inherit}
 .pricetbl input{width:90px;text-align:right;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-family:var(--font-num);font-size:12px}
 .pricetbl tr.changed input{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .pricewrap{max-height:min(56vh,460px);overflow:auto;border:1px solid var(--line);border-radius:6px}
+.tabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.tabs button{border:none;background:none;padding:8px 12px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;font-weight:700}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.ringinfo{margin:12px 0 0;padding:8px 10px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);font-size:12px;line-height:1.7;font-variant-numeric:tabular-nums}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
 .chip.warn{border-color:var(--warn);color:var(--warn)}
@@ -235,7 +239,28 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
 <dialog id="dlgGen">
   <form method="dialog" id="genForm">
     <h3>一括作成</h3>
-    <div class="grid">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabLine" aria-selected="true">直線（片面）</button>
+      <button type="button" role="tab" id="tabRing" aria-selected="false">建物を囲む</button>
+    </div>
+    <div id="paneRing" hidden>
+      <div class="grid">
+        <label>建物の幅（X方向）mm<input type="number" id="rW" min="600" max="100000" step="100" value="9000"></label>
+        <label>建物の奥行（Z方向）mm<input type="number" id="rD" min="600" max="100000" step="100" value="6000"></label>
+        <label>建物の高さ mm<input type="number" id="rH" min="500" max="40000" step="100" value="6500"></label>
+        <label>建物からの離れ mm<input type="number" id="rGap" min="0" max="2000" step="50" value="300"></label>
+        <label>建地幅<select id="rWidth"><option>600</option><option selected>900</option><option>1200</option></select></label>
+        <label>基本スパン<select id="rSpan"><option>1800</option><option>1200</option></select></label>
+        <label>踏板幅<select id="rBoard"><option>400</option><option>250</option></select></label>
+        <label>作成方法<select id="rMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
+        <label class="check"><input type="checkbox" id="rStair" checked>正面に階段を入れる（スパン1800の区画）</label>
+        <label class="check"><input type="checkbox" id="rBrace" checked>外周に筋交いを入れる（スパン1800・KSL-18）</label>
+        <label class="check"><input type="checkbox" id="rBldg" checked>建物を表示する（集計には含めない）</label>
+      </div>
+      <p class="ringinfo" id="rInfo"></p>
+      <p class="hint">建物の四周を、離れをとって足場で囲みます。各辺は基本スパンで割り付け、端数は 600〜1200 のスパンで調整して建物の中心にそろえます。段数は最上段の手摺（床+900）が建物の高さ以上になるように決めます。</p>
+    </div>
+    <div class="grid" id="paneLine">
       <label>桁方向スパン数<input type="number" id="gSpans" min="1" max="20" value="4"></label>
       <label>スパン長（桁方向）<select id="gSpan"><option>1800</option><option>1200</option><option>900</option><option>600</option></select></label>
       <label>建地幅（妻方向）<select id="gWidth"><option>600</option><option selected>900</option><option>1200</option></select></label>
@@ -246,7 +271,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
       <label class="check"><input type="checkbox" id="gBrace" checked>外側に筋交いを入れる（スパン1800のとき・KSL-18）</label>
       <label class="check"><input type="checkbox" id="gPanel">外側の手摺に合板を張る（スパン1800のとき・フック4本/枚）</label>
     </div>
-    <p class="hint">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
+    <p class="hint" id="hintLine">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
     <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
   </form>
 </dialog>
@@ -334,11 +359,14 @@ const CATALOG = {
 /* 合板1枚につき つば付きフック 4本（重量は目安） */
 const HOOK = {code:'HOOK-F', type:'hook', kg:0.2, price:150, spec:'つば付きフック（ボルト・ナット付）', est:true};
 const HOOKS_PER_PANEL = 4;
+/* 建物（参考表示・集計外）。寸法は部材ごとに size:[幅,高さ,奥行] で持つ */
+const BLDG = {code:'BLDG', type:'building', kg:0, spec:'建物（参考）', ref:true};
 const TYPES = ['post','board','ledger','jack','stair','panel','brace','pipe','clamp','sheet','person'];
-const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）', pipe:'単管パイプ', clamp:'クランプ', sheet:'フラット鋼板'};
+const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）', pipe:'単管パイプ', clamp:'クランプ', sheet:'フラット鋼板', building:'建物'};
 const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5', panel:'6', brace:'7', person:'8', pipe:'9', clamp:'0', sheet:'-'};
 const ITEM = {};
 for (const t of TYPES) for (const it of CATALOG[t]) { it.type = t; ITEM[it.code] = it; }
+ITEM[BLDG.code] = BLDG;
 const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' ? `${it.W}×${it.L}`
   : it.type==='ledger' ? `Φ42.7×${it.L}` : it.type==='brace' ? `Φ27.2×${it.L}（${it.span}×${it.rise}）` : it.type==='pipe' ? `φ48.6×${it.L}` : it.spec;
 const estMark = it => it.est ? '（目安）' : '';
@@ -435,6 +463,7 @@ function applyTheme(){
     brace: mk('--c-brace', {metalness:.5, roughness:.45}), person: mk('--c-person', {metalness:0, roughness:.85}),
     pipe: mk('--c-pipe', {metalness:.55, roughness:.4}), clamp: mk('--c-clamp', {metalness:.6, roughness:.4}),
     sheet: mk('--c-sheet', {metalness:.5, roughness:.45}),
+    building: mk('--c-building', {metalness:0, roughness:.9, transparent:true, opacity:.38, depthWrite:false}),
     skin: new THREE.MeshStandardMaterial({color:0xd9a77f, roughness:.8}),
     helmet: new THREE.MeshStandardMaterial({color:0xf5f3ea, roughness:.4}),
     boots: new THREE.MeshStandardMaterial({color:0x2a2a2a, roughness:.7}),
@@ -565,6 +594,11 @@ function buildPart(part){
       else add(boxGeo(SHEET_W, L, SHEET_T), MAT.sheet, 0, .1 - L/2, off, true);
       break;
     }
+    case 'building': {
+      const [W, H, D] = part.size || [1, 1, 1];
+      add(boxGeo(r4(W), r4(H), r4(D)), MAT.building, W/2, H/2, D/2, true);
+      break;
+    }
     case 'person': {
       // 身長1700：足元が原点、+X が正面
       for (const zz of [-.09, .09]) {
@@ -615,6 +649,7 @@ function endsOf(part){
 const axisOf = rot => { let a = Math.round(((rot||0) * 180/Math.PI) % 180); if (a<0) a+=180; return a===180 ? 0 : a; };
 function signature(part){
   if (part.type==='post' || part.type==='jack' || part.type==='person') return part.type + '@' + keyOf(V(part.p));
+  if (part.type==='building') return `building@${keyOf(V(part.p))}#${(part.size||[]).join(',')}`;
   if (part.type==='brace') {  // 向きを正規化（A→B と B→A は同じ筋交い）。X字に交差する2本は傾きで区別
     const [S,E] = endsOf(part), v = E.clone().sub(S);
     if (v.x < -1e-6 || (Math.abs(v.x) < 1e-6 && v.z < 0)) v.negate();
@@ -648,7 +683,7 @@ function rebuildIndex(){
 }
 function isConnected(part){
   if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
-  if (part.type==='person' || part.type==='pipe' || part.type==='clamp' || part.type==='sheet') return true;
+  if (part.type==='person' || part.type==='pipe' || part.type==='clamp' || part.type==='sheet' || part.type==='building') return true;
   if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
   if (part.type==='panel') return hooksOnRail(part) === HOOKS_PER_PANEL;
   if (part.type==='board' || part.type==='stair') return hangSupported(part).every(Boolean);
@@ -1118,15 +1153,17 @@ const PICK_RING = [[0,0],[4,0],[-4,0],[0,4],[0,-4],[8,0],[-8,0],[0,8],[0,-8],[6,
 function pickAt(ev, type){
   setRay(ev);
   const hits = raycaster.intersectObjects(partsGroup.children, true);
+  let bldg = null;   // 半透明の建物は、奥に部材が無いときだけ選ぶ
   for (const h of hits) {
     if (!h.object.isMesh) continue;
     let o = h.object; while (o && o.userData.partId === undefined) o = o.parent;
     if (!o) continue;
-    if (!type) return o.userData.partId;
     const p = state.parts.find(x => x.id === o.userData.partId);
+    if (p && p.type === 'building' && type !== 'building') { if (!type && !bldg) bldg = p.id; continue; }
+    if (!type) return o.userData.partId;
     if (p && p.type === type) return p.id;
   }
-  return null;
+  return bldg;
 }
 function pick(ev, type){
   for (const [dx, dy] of PICK_RING) {
@@ -1402,9 +1439,123 @@ function generate({spans, span, width, levels, board, stair, panel, brace}){
   }
   return out;
 }
-$('btnGen').onclick = () => $('dlgGen').showModal();
+/* 長さ len(mm) を基本スパンで割り付け、端数は 600〜1800 のうち端数以上で最小のスパンで埋める */
+function splitLen(len, base){
+  const out = [];
+  let n = Math.floor(len / base), rem = len - n*base;
+  for (let i=0; i<n; i++) out.push(base);
+  if (rem > 0) out.push([600, 900, 1200, 1800].find(v => v >= rem) || base);
+  return out;
+}
+/* 建物を囲む足場：建物の隅が原点、X=幅、Z=奥行。外周バンド（建地幅）を四周にまわす */
+function ringPlan({bw, bd, bh, gap, width, span}){
+  const c = gap/1000, fw = width/1000, W = bw/1000, D = bd/1000, H = bh/1000;
+  const sx = splitLen(Math.round(W*1000 + 2*gap), span), sz = splitLen(Math.round(D*1000 + 2*gap), span);
+  const Tx = sx.reduce((a,b)=>a+b,0)/1000, Tz = sz.reduce((a,b)=>a+b,0)/1000;
+  const x0 = -c - (Tx - (W + 2*c))/2, z0 = -c - (Tz - (D + 2*c))/2;
+  const line = (o, spans) => { const a = [r4(o - fw), r4(o)]; let v = o; for (const q of spans) { v += q/1000; a.push(r4(v)); } a.push(r4(v + fw)); return a; };
+  const k0 = JACK_H + KOMA0;
+  const levels = Math.max(1, Math.ceil((H - .9 - k0) / 1.8 - 1e-9));
+  return {sx, sz, xs: line(x0, sx), zs: line(z0, sz), levels, k0, W, D, H, c, fw,
+    gapX: r4(-x0), gapZ: r4(-z0)};
+}
+function generateRing(opt){
+  const {board, stair, brace, bldg} = opt;
+  const P = ringPlan(opt), {xs, zs, levels, k0} = P;
+  const out = [], m = xs.length - 1, n = zs.length - 1;
+  const yf = i => k0 + KOMA*4*i;
+  const ring = (i, j) => i>=0 && j>=0 && i<m && j<n && (i===0 || j===0 || i===m-1 || j===n-1);
+  // 支柱・ジャッキ：外周バンドの区画に接する節点
+  const need = Math.round((KOMA0 + KOMA*(4*levels+2) + KOMA_TOP) * 1000);
+  const postSeq = []; let rest = need;
+  for (const L of [3600,2700,1800,900,450]) while (rest >= L) { postSeq.push(L); rest -= L; }
+  if (rest > 0) postSeq.push(450);
+  const postCode = {3600:'KSA-36',2700:'KSA-27',1800:'KSA-18',900:'KSA-09',450:'KSA-045'};
+  for (let i=0; i<=m; i++) for (let j=0; j<=n; j++) {
+    if (!(ring(i-1,j-1) || ring(i,j-1) || ring(i-1,j) || ring(i,j))) continue;
+    out.push({type:'jack', code:state.code.jack, p:[xs[i], 0, zs[j]], rot:0, off:0});
+    let y = JACK_H;
+    for (const L of postSeq) { out.push({type:'post', code:postCode[L], p:[xs[i], r4(y), zs[j]], rot:0, off:0}); y += L/1000; }
+  }
+  // 手摺（布材）：区画の辺。外周の辺だけ床+450・+900にも
+  const ledger = (x, y, z, len, alongZ) => {
+    const code = LEDGER_BY_L[Math.round(len*1000)];
+    if (code) out.push({type:'ledger', code, p:[r4(x), r4(y), r4(z)], rot: alongZ ? r4(-Math.PI/2) : 0, off:0});
+  };
+  const edges = [];
+  for (let i=0; i<m; i++) for (let j=0; j<=n; j++) if (ring(i,j-1) || ring(i,j)) edges.push({x:xs[i], z:zs[j], len:xs[i+1]-xs[i], alongZ:false, outer: j===0 || j===n});
+  for (let i=0; i<=m; i++) for (let j=0; j<n; j++) if (ring(i-1,j) || ring(i,j)) edges.push({x:xs[i], z:zs[j], len:zs[j+1]-zs[j], alongZ:true, outer: i===0 || i===m});
+  for (const e of edges) ledger(e.x, k0, e.z, e.len, e.alongZ);   // 根がらみ
+  const Wb = board/1000, bpad = L => String(Math.round(L*10)).padStart(2,'0');
+  // 階段：正面（初期視点から見える Z 最大側）のバンドで、スパン1800の最初の区画
+  let stairCell = -1;
+  if (stair && levels >= 2) for (let i=1; i<m-1; i++) if (Math.abs(xs[i+1]-xs[i]-1.8) < 1e-3) { stairCell = i; break; }
+  for (let lv=1; lv<=levels; lv++) {
+    const y = yf(lv);
+    for (const e of edges) {
+      ledger(e.x, y, e.z, e.len, e.alongZ);
+      if (e.outer) { ledger(e.x, y + KOMA, e.z, e.len, e.alongZ); ledger(e.x, y + 2*KOMA, e.z, e.len, e.alongZ); }
+    }
+    // 踏板：正面・背面のバンドと四隅は X 方向、左右のバンドは Z 方向に渡す
+    for (let i=0; i<m; i++) for (let j=0; j<n; j++) {
+      if (!ring(i,j)) continue;
+      const dx = xs[i+1]-xs[i], dz = zs[j+1]-zs[j], alongX = j===0 || j===n-1;
+      const run = alongX ? dx : dz, cross = alongX ? dz : dx;
+      const code = `KSD-${board===400 ? '40' : '25'}${bpad(run)}`;
+      if (!ITEM[code]) continue;
+      const lanes = Math.max(1, Math.floor((cross - 2*EDGE_GAP + 1e-6) / Wb));
+      for (let l=0; l<lanes; l++) {
+        if (j===n-1 && i===stairCell && l===0 && lv>=2) continue;   // 階段の開口
+        const off = r4(EDGE_GAP + Wb*(l + .5));
+        out.push(alongX ? {type:'board', code, p:[xs[i], r4(y), zs[j]], rot:0, off}
+                        : {type:'board', code, p:[xs[i+1], r4(y), zs[j]], rot:r4(-Math.PI/2), off});
+      }
+    }
+    if (stairCell >= 0 && lv < levels) out.push({type:'stair', code:state.code.stair, p:[xs[stairCell], r4(y), zs[n-1]], rot:0, off:r4(EDGE_GAP + STAIR_W/2)});
+    // 筋交い：外周の 1800 の辺に、段ごと上り・下りを交互に
+    if (brace) {
+      let k = 0;
+      for (const e of edges) {
+        if (!e.outer || Math.abs(e.len - 1.8) > 1e-3) continue;
+        const up = (k++ + lv) % 2 ? -1 : 1;
+        out.push({type:'brace', code:'KSL-18', p:[r4(e.x), r4(yf(lv-1) + (up < 0 ? 1.8 : 0)), r4(e.z)], rot: e.alongZ ? r4(-Math.PI/2) : 0, off:0, up});
+      }
+    }
+  }
+  if (bldg) out.push({type:'building', code:'BLDG', p:[0,0,0], rot:0, off:0, size:[r4(P.W), r4(P.H), r4(P.D)]});
+  return out;
+}
+const ringOpt = () => ({bw:Math.max(600, +$('rW').value||0), bd:Math.max(600, +$('rD').value||0), bh:Math.max(500, +$('rH').value||0),
+  gap:Math.max(0, +$('rGap').value||0), width:+$('rWidth').value, span:+$('rSpan').value, board:+$('rBoard').value,
+  stair:$('rStair').checked, brace:$('rBrace').checked, bldg:$('rBldg').checked});
+function updateRingInfo(){
+  const P = ringPlan(ringOpt()), yTop = JACK_H + KOMA0 + KOMA*4*P.levels;
+  const fmt = a => a.join('＋');
+  $('rInfo').innerHTML = `幅方向（X）：${fmt(P.sx)}（${P.sx.length}スパン）　奥行方向（Z）：${fmt(P.sz)}（${P.sz.length}スパン）<br>`
+    + `建物からの離れ：X ${Math.round(P.gapX*1000)}mm・Z ${Math.round(P.gapZ*1000)}mm　段数：${P.levels}段（最上段の床 ${Math.round(yTop*1000)}mm／手摺 ${Math.round((yTop+.9)*1000)}mm）<br>`
+    + `外形：約 ${Math.round((P.xs[P.xs.length-1]-P.xs[0])*1000)} × ${Math.round((P.zs[P.zs.length-1]-P.zs[0])*1000)} mm`;
+}
+let genTab = 'line';
+function setGenTab(t){
+  genTab = t;
+  $('tabLine').setAttribute('aria-selected', t==='line'); $('tabRing').setAttribute('aria-selected', t==='ring');
+  $('paneLine').hidden = t!=='line'; $('hintLine').hidden = t!=='line'; $('paneRing').hidden = t!=='ring';
+  if (t==='ring') updateRingInfo();
+}
+$('tabLine').onclick = () => setGenTab('line');
+$('tabRing').onclick = () => setGenTab('ring');
+$('paneRing').addEventListener('input', updateRingInfo);
+$('btnGen').onclick = () => { setGenTab(genTab); $('dlgGen').showModal(); };
 $('genForm').addEventListener('submit', e => {
   if (e.submitter && e.submitter.value !== 'ok') return;
+  if (genTab === 'ring') {
+    pushHistory();
+    if ($('rMode').value==='replace') { state.parts = []; state.selected = null; }
+    const sigs = new Set(state.parts.map(signature));
+    for (const p of generateRing(ringOpt())) { const sg = signature(p); if (!sigs.has(sg)) { sigs.add(sg); addPart(p, false); } }
+    rebuildAll(); fitView(); toast('建物を囲む足場を作成しました');
+    return;
+  }
   const opt = {spans:Math.max(1,Math.min(20,+$('gSpans').value||1)), span:+$('gSpan').value, width:+$('gWidth').value,
     levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked, panel:$('gPanel').checked, brace:$('gBrace').checked};
   pushHistory();
@@ -1459,7 +1610,7 @@ $('dataFile').onchange = e => { const f = e.target.files[0]; if (!f) return; con
 function migrate(parts, ver){
   if ((ver||1) >= DATA_VER) return parts;
   const dy = KOMA0 - KOMA;
-  return parts.map(p => (p.type==='post' || p.type==='jack' || p.type==='person') ? p : {...p, p:[p.p[0], r4(p.p[1] + dy), p.p[2]]});
+  return parts.map(p => (p.type==='post' || p.type==='jack' || p.type==='person' || p.type==='building') ? p : {...p, p:[p.p[0], r4(p.p[1] + dy), p.p[2]]});
 }
 function loadJson(txt){
   let data; try { data = JSON.parse(txt); } catch { toast('JSONとして読み込めません。内容を確認してください'); return; }
@@ -1473,7 +1624,7 @@ function loadJson(txt){
     if (['v','h','roof'].includes(p.ori)) extra.ori = p.ori;
     if (it.type==='panel' && p.ori==='v') extra.drop = +p.drop || PANEL_ORI.v.drop;
     if (it.type==='brace') extra.up = p.up===-1 ? -1 : 1;
-    for (const k of ['a','b','n']) if (Array.isArray(p[k]) && p[k].length===3 && p[k].every(Number.isFinite)) extra[k] = p[k].map(Number);
+    for (const k of ['a','b','n','size']) if (Array.isArray(p[k]) && p[k].length===3 && p[k].every(Number.isFinite)) extra[k] = p[k].map(Number);
     parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0, ...extra});
   }
   if (!Array.isArray(data)) {
