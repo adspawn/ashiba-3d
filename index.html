@@ -9,7 +9,7 @@
   --bg:#e9ecef; --panel:#f7f8f9; --panel-2:#eef1f3; --ink:#1c2229; --muted:#5b6571; --line:#d2d8de;
   --accent:#f2b705; --accent-ink:#1c2229; --ok:#23884f; --warn:#c85a14; --bad:#c22f2f;
   --scene:#dde3e8; --grid-major:#9aa6b2; --grid-minor:#c3cbd3;
-  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e; --c-pipe:#8d98a3; --c-clamp:#5f6873; --c-sheet:#a9bccb; --c-building:#c7b79c;
+  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e; --c-pipe:#8d98a3; --c-clamp:#5f6873; --c-sheet:#a9bccb; --c-building:#c7b79c; --c-field:#6fa760; --c-team-a:#d0453a; --c-team-b:#2f6fd0;
   --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
   --font-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:light;
@@ -18,13 +18,13 @@
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66; --c-field:#4f8a45; --c-team-a:#e0645a; --c-team-b:#5b8fe6;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8; --c-building:#8a7c66; --c-field:#4f8a45; --c-team-a:#e0645a; --c-team-b:#5b8fe6;
   color-scheme:dark; }
 
 html,body{height:100%}
@@ -245,6 +245,24 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
     <div class="tabs" role="tablist">
       <button type="button" role="tab" id="tabLine" aria-selected="true">直線（片面）</button>
       <button type="button" role="tab" id="tabRing" aria-selected="false">建物を囲む</button>
+      <button type="button" role="tab" id="tabField" aria-selected="false">サバゲーフィールド</button>
+    </div>
+    <div id="paneField" hidden>
+      <div class="grid">
+        <label>フィールドの幅（X方向）m<input type="number" id="fW" min="10" max="300" step="1" value="30"></label>
+        <label>フィールドの奥行（Z方向）m<input type="number" id="fD" min="10" max="300" step="1" value="50"></label>
+        <label>バリケードの密度<select id="fDensity"><option value="low">少なめ（約80㎡に1基）</option><option value="mid" selected>ふつう（約50㎡に1基）</option><option value="high">多め（約30㎡に1基）</option></select></label>
+        <label>スタート地点の奥行 m<input type="number" id="fBase" min="2" max="30" step="1" value="5"></label>
+        <label class="check"><input type="checkbox" id="fPly" checked>合板壁（高さ1.8m・単管＋合板2枚）</label>
+        <label class="check"><input type="checkbox" id="fSteel" checked>鋼板壁（高さ2.0m・単管＋鋼板4枚）</label>
+        <label class="check"><input type="checkbox" id="fLow" checked>腰壁（高さ0.9m・単管＋合板横置き）</label>
+        <label class="check"><input type="checkbox" id="fTower" checked>櫓（足場1スパン・床高さ約2.3m）</label>
+        <label class="check"><input type="checkbox" id="fSym" checked>点対称に配置する（両チームが公平になる）</label>
+        <label>レイアウト番号（シード）<span style="display:flex;gap:6px"><input type="number" id="fSeed" min="1" max="999999" value="1" style="flex:1"><button class="btn" type="button" id="fReroll">別の配置</button></span></label>
+        <label>作成方法<select id="fMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
+      </div>
+      <p class="ringinfo" id="fInfo"></p>
+      <p class="hint">両端をスタート地点として空け、その間にバリケードを通路2.5m以上あけて配置します。広いフィールドでは中央に櫓を置きます。バリケードは単管・クランプ・合板・鋼板・足場の部材で組むので、拾い出しと金額にそのまま入ります。</p>
     </div>
     <div id="paneRing" hidden>
       <div class="grid">
@@ -264,7 +282,6 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
         <label class="check"><input type="checkbox" id="rBldg" checked>建物を表示する（集計には含めない）</label>
       </div>
       <p class="ringinfo" id="rInfo"></p>
-      <div class="ringresult" id="rResult" hidden></div>
       <p class="hint">建物の四周を、離れをとって足場で囲みます。各辺は基本スパンで割り付け、端数は 600〜1200 のスパンで調整して建物の中心にそろえます。段数は最上段の手摺（床+900）が建物の高さ以上になるように決めます。</p>
     </div>
     <div class="grid" id="paneLine">
@@ -278,8 +295,9 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
       <label class="check"><input type="checkbox" id="gBrace" checked>外側に筋交いを入れる（スパン1800のとき・KSL-18）</label>
       <label class="check"><input type="checkbox" id="gPanel">外側の手摺に合板を張る（スパン1800のとき・フック4本/枚）</label>
     </div>
+    <div class="ringresult" id="calcResult" hidden></div>
     <p class="hint" id="hintLine">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
-    <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn" type="button" id="rCalc" hidden>数量だけ計算</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn" type="button" id="rCalc">数量だけ計算</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
   </form>
 </dialog>
 
@@ -369,11 +387,14 @@ const HOOKS_PER_PANEL = 4;
 /* 建物（参考表示・集計外）。寸法は部材ごとに size:[幅,高さ,奥行] で持つ */
 const BLDG = {code:'BLDG', type:'building', kg:0, spec:'建物（参考）', ref:true};
 const TYPES = ['post','board','ledger','jack','stair','panel','brace','pipe','clamp','sheet','person'];
-const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）', pipe:'単管パイプ', clamp:'クランプ', sheet:'フラット鋼板', building:'建物'};
+const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）', pipe:'単管パイプ', clamp:'クランプ', sheet:'フラット鋼板', building:'建物', zone:'範囲'};
 const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5', panel:'6', brace:'7', person:'8', pipe:'9', clamp:'0', sheet:'-'};
 const ITEM = {};
 for (const t of TYPES) for (const it of CATALOG[t]) { it.type = t; ITEM[it.code] = it; }
 ITEM[BLDG.code] = BLDG;
+/* フィールドの範囲とスタート地点（参考表示・集計外）。size:[幅,厚さ,奥行] */
+for (const z of [{code:'FIELD', spec:'フィールド範囲'}, {code:'BASE-A', spec:'スタート地点 A'}, {code:'BASE-B', spec:'スタート地点 B'}])
+  ITEM[z.code] = {...z, type:'zone', kg:0, ref:true};
 const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' ? `${it.W}×${it.L}`
   : it.type==='ledger' ? `Φ42.7×${it.L}` : it.type==='brace' ? `Φ27.2×${it.L}（${it.span}×${it.rise}）` : it.type==='pipe' ? `φ48.6×${it.L}` : it.spec;
 const estMark = it => it.est ? '（目安）' : '';
@@ -471,6 +492,9 @@ function applyTheme(){
     pipe: mk('--c-pipe', {metalness:.55, roughness:.4}), clamp: mk('--c-clamp', {metalness:.6, roughness:.4}),
     sheet: mk('--c-sheet', {metalness:.5, roughness:.45}),
     building: mk('--c-building', {metalness:0, roughness:.9, transparent:true, opacity:.38, depthWrite:false}),
+    'FIELD': mk('--c-field', {metalness:0, roughness:1, transparent:true, opacity:.28, depthWrite:false}),
+    'BASE-A': mk('--c-team-a', {metalness:0, roughness:1, transparent:true, opacity:.35, depthWrite:false}),
+    'BASE-B': mk('--c-team-b', {metalness:0, roughness:1, transparent:true, opacity:.35, depthWrite:false}),
     skin: new THREE.MeshStandardMaterial({color:0xd9a77f, roughness:.8}),
     helmet: new THREE.MeshStandardMaterial({color:0xf5f3ea, roughness:.4}),
     boots: new THREE.MeshStandardMaterial({color:0x2a2a2a, roughness:.7}),
@@ -482,7 +506,7 @@ function applyTheme(){
 }
 function buildGrid(){
   if (gridHelper) { scene.remove(gridHelper); gridHelper.geometry.dispose(); }
-  const div = 120;
+  const div = Math.round(90 / state.grid);   // 地面のグリッドは約90m四方（サバゲーフィールドも収まる）
   gridHelper = new THREE.GridHelper(state.grid * div, div, new THREE.Color(css('--grid-major')), new THREE.Color(css('--grid-minor')));
   gridHelper.position.y = -0.001;
   scene.add(gridHelper);
@@ -601,6 +625,11 @@ function buildPart(part){
       else add(boxGeo(SHEET_W, L, SHEET_T), MAT.sheet, 0, .1 - L/2, off, true);
       break;
     }
+    case 'zone': {
+      const [W, , D] = part.size || [1, 0, 1];
+      add(boxGeo(r4(W), .01, r4(D)), MAT[part.code] || MAT.FIELD, W/2, part.code==='FIELD' ? .004 : .008, D/2, true);
+      break;
+    }
     case 'building': {
       const [W, H, D] = part.size || [1, 1, 1];
       add(boxGeo(r4(W), r4(H), r4(D)), MAT.building, W/2, H/2, D/2, true);
@@ -656,6 +685,7 @@ function endsOf(part){
 const axisOf = rot => { let a = Math.round(((rot||0) * 180/Math.PI) % 180); if (a<0) a+=180; return a===180 ? 0 : a; };
 function signature(part){
   if (part.type==='post' || part.type==='jack' || part.type==='person') return part.type + '@' + keyOf(V(part.p));
+  if (part.type==='zone') return `zone@${part.code}@${keyOf(V(part.p))}#${(part.size||[]).join(',')}`;
   if (part.type==='building') return `building@${keyOf(V(part.p))}#${(part.size||[]).join(',')}`;
   if (part.type==='brace') {  // 向きを正規化（A→B と B→A は同じ筋交い）。X字に交差する2本は傾きで区別
     const [S,E] = endsOf(part), v = E.clone().sub(S);
@@ -690,7 +720,7 @@ function rebuildIndex(){
 }
 function isConnected(part){
   if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
-  if (part.type==='person' || part.type==='pipe' || part.type==='clamp' || part.type==='sheet' || part.type==='building') return true;
+  if (part.type==='person' || part.type==='pipe' || part.type==='clamp' || part.type==='sheet' || part.type==='building' || part.type==='zone') return true;
   if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
   if (part.type==='panel') return hooksOnRail(part) === HOOKS_PER_PANEL;
   if (part.type==='board' || part.type==='stair') return hangSupported(part).every(Boolean);
@@ -702,7 +732,7 @@ function isConnected(part){
 function onRail(pt, rot){
   const a = axisOf(rot);
   for (const lg of state.parts) {
-    if (lg.type!=='ledger' || axisOf(lg.rot)!==a) continue;
+    if (!(lg.type==='ledger' || (lg.type==='pipe' && lg.ori!=='v')) || axisOf(lg.rot)!==a) continue;
     const [S,E] = endsOf(lg), d = E.clone().sub(S), L = d.length(); d.normalize();
     const v = pt.clone().sub(S), t = v.dot(d);
     if (t < -.01 || t > L+.01) continue;
@@ -1166,7 +1196,7 @@ function pickAt(ev, type){
     let o = h.object; while (o && o.userData.partId === undefined) o = o.parent;
     if (!o) continue;
     const p = state.parts.find(x => x.id === o.userData.partId);
-    if (p && p.type === 'building' && type !== 'building') { if (!type && !bldg) bldg = p.id; continue; }
+    if (p && (p.type === 'building' || p.type === 'zone') && type !== p.type) { if (!type && !bldg) bldg = p.id; continue; }
     if (!type) return o.userData.partId;
     if (p && p.type === type) return p.id;
   }
@@ -1550,7 +1580,7 @@ function ringArea(P){
 }
 function updateRingInfo(){
   const P = ringPlan(ringOpt()), yTop = JACK_H + KOMA0 + KOMA*4*P.levels, A = ringArea(P), m2 = +$('rM2').value || 0;
-  $('rResult').hidden = true;
+  $('calcResult').hidden = true;
   const fmt = a => a.join('＋');
   $('rInfo').innerHTML = `幅方向（X）：${fmt(P.sx)}（${P.sx.length}スパン）　奥行方向（Z）：${fmt(P.sz)}（${P.sz.length}スパン）<br>`
     + `建物からの離れ：X ${Math.round(P.gapX*1000)}mm・Z ${Math.round(P.gapZ*1000)}mm　段数：${P.levels}段（最上段の床 ${Math.round(yTop*1000)}mm／手摺 ${Math.round((yTop+.9)*1000)}mm）<br>`
@@ -1558,53 +1588,159 @@ function updateRingInfo(){
     + `架面積：外周 ${A.perim.toFixed(2)}m × 高さ ${A.height.toFixed(2)}m ＝ <b>${A.area.toFixed(1)}㎡</b>`
     + (m2 ? `　×${m2.toLocaleString('ja-JP')}円/㎡ ＝ <b>${fmtYen(A.area*m2)}</b>（税抜・参考）` : '');
 }
+/* ===== サバゲーフィールド ===== */
+/* 乱数（シードで同じ配置を再現できる） */
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* 部材を Y 軸まわりに ang 回して (dx, dz) へ移す */
+function transformPart(pt, ang, dx, dz){
+  const c = Math.cos(ang), sn = Math.sin(ang);
+  const rv = v => [r4(v[0]*c + v[2]*sn), r4(v[1]), r4(-v[0]*sn + v[2]*c)];
+  const q = {...pt, p: rv(pt.p)};
+  q.p[0] = r4(q.p[0] + dx); q.p[2] = r4(q.p[2] + dz);
+  q.rot = pt.type==='clamp' ? 0 : r4((pt.rot||0) + ang);
+  for (const k of ['a','b','n']) if (pt[k]) q[k] = rv(pt[k]);
+  return q;
+}
+/* バリケード1基の部材（ローカル座標：壁は X 方向、中心が原点、面材は +Z 側） */
+const CL_OFF = PIPE_R*2;
+const clampAt = (p, a, b, n) => ({type:'clamp', code:'CL-90', p, rot:0, off:0, a, b, n});
+function pipeFrame(xs, yRails, vCode, hCode, hStart){
+  const out = [];
+  for (const x of xs) out.push({type:'pipe', code:vCode, p:[x, 0, -CL_OFF], rot:0, off:0, ori:'v'});
+  for (const y of yRails) out.push({type:'pipe', code:hCode, p:[hStart, y, 0], rot:0, off:0, ori:'h'});
+  for (const x of xs) for (const y of yRails) out.push(clampAt([x, y, -CL_OFF], [0,1,0], [1,0,0], [0,0,CL_OFF]));
+  return out;
+}
+const BARRICADES = {
+  ply: {name:'合板壁', r:1.15, w:3, build: () => pipeFrame([-.9, .9], [1.8, .45], 'TP-20', 'TP-20', -1)
+    .concat([-.455, .455].map(x => ({type:'panel', code:'PLY-1809', p:[x, 1.8, 0], rot:0, off:PANEL_OFF, ori:'v', drop:r4(RAIL_PITCH*3)})))},
+  steel: {name:'鋼板壁', r:1.35, w:2, build: () => pipeFrame([-1.1, 1.1], [1.9, .4], 'TP-20', 'TP-25', -1.25)
+    .concat([0,1,2,3].map(k => ({type:'sheet', code:'FS-20', p:[r4(-.75 + .5*k), 1.9, 0], rot:0, off:r4(PIPE_R + SHEET_T), ori:'v'})))},
+  low: {name:'腰壁', r:1.1, w:3, build: () => pipeFrame([-.9, .9], [.86, .41], 'TP-10', 'TP-20', -1)
+    .concat([{type:'panel', code:'PLY-1809', p:[0, .86, 0], rot:0, off:PANEL_OFF}])},
+  tower: {name:'櫓', r:1.25, w:1, build: () => generate({spans:1, span:1800, width:900, levels:1, board:400, stair:false, brace:true, panel:false})
+    .map(pt => transformPart(pt, 0, -.9, -.45))},
+};
+const fieldOpt = () => ({W: Math.min(300, Math.max(10, +$('fW').value||30)), D: Math.min(300, Math.max(10, +$('fD').value||50)),
+  density: $('fDensity').value, base: Math.max(2, +$('fBase').value||5), sym: $('fSym').checked, seed: Math.max(1, Math.floor(+$('fSeed').value||1)),
+  kinds: [['ply','fPly'],['steel','fSteel'],['low','fLow'],['tower','fTower']].filter(([,id]) => $(id).checked).map(([k]) => k)});
+function generateField({W, D, density, base, sym, seed, kinds}){
+  const rng = mulberry32(seed * 9973), out = [], placed = [];
+  out.push({type:'zone', code:'FIELD', p:[0,0,0], rot:0, off:0, size:[W, .01, D]});
+  out.push({type:'zone', code:'BASE-A', p:[0,0,0], rot:0, off:0, size:[W, .01, base]});
+  out.push({type:'zone', code:'BASE-B', p:[0,0,r4(D-base)], rot:0, off:0, size:[W, .01, base]});
+  out.push({type:'person', code:'MAN-170', p:[r4(W/2), 0, r4(base/2)], rot:r4(-Math.PI/2), off:0});
+  out.push({type:'person', code:'MAN-170', p:[r4(W/2), 0, r4(D-base/2)], rot:r4(Math.PI/2), off:0});
+  if (!kinds.length) return {parts:out, placed};
+  const per = {low:80, mid:50, high:30}[density] || 50, GAP = 2.5;
+  const zMin = base + 1.5, zMax = D - base - 1.5;
+  const usable = W * Math.max(0, zMax - zMin), target = Math.max(1, Math.round(usable / per));
+  const fits = (x, z, r) => placed.every(o => Math.hypot(o.x - x, o.z - z) >= o.r + r + GAP);
+  const put = (k, x, z, ang) => placed.push({k, x:r4(x), z:r4(z), r:BARRICADES[k].r, ang});
+  let towers = 0;
+  const towerMax = 1 + 2*Math.floor(usable / 1200);
+  // 広いフィールドは中央に櫓（点対称の中心なので1基）
+  if (kinds.includes('tower') && W >= 12 && zMax - zMin >= 12) { put('tower', W/2, D/2, rng() < .5 ? 0 : Math.PI/2); towers++; }
+  const ANG = [0, Math.PI/4, Math.PI/2, Math.PI*3/4];
+  for (let tries = 0; placed.length < target && tries < 5000; tries++) {
+    const pool = kinds.filter(k => k !== 'tower' || towers < towerMax);
+    if (!pool.length) break;
+    let sum = pool.reduce((a, k) => a + BARRICADES[k].w, 0), pick = rng()*sum, k = pool[0];
+    for (const kk of pool) { pick -= BARRICADES[kk].w; if (pick <= 0) { k = kk; break; } }
+    const r = BARRICADES[k].r;
+    if (W < 2*r + 2) continue;
+    const x = r + 1 + rng()*(W - 2*r - 2);
+    const zTop = sym ? (zMin + zMax)/2 : zMax - r;
+    if (zTop <= zMin + r) break;
+    const z = zMin + r + rng()*(zTop - zMin - r);
+    const ang = ANG[Math.floor(rng()*4)];
+    if (!fits(x, z, r)) continue;
+    if (sym) {
+      const mx = W - x, mz = D - z;
+      if (Math.hypot(mx - x, mz - z) < 2*r + GAP) continue;
+      put(k, x, z, ang);
+      if (!fits(mx, mz, r)) { placed.pop(); continue; }
+      put(k, mx, mz, ang + Math.PI);
+      if (k === 'tower') towers += 2;
+    } else { put(k, x, z, ang); if (k === 'tower') towers++; }
+  }
+  for (const b of placed) for (const pt of BARRICADES[b.k].build()) out.push(transformPart(pt, b.ang, b.x, b.z));
+  return {parts:out, placed};
+}
+const fieldCounts = placed => Object.keys(BARRICADES).map(k => [k, placed.filter(b => b.k===k).length]).filter(([,n]) => n);
+function updateFieldInfo(){
+  $('calcResult').hidden = true;
+  const o = fieldOpt(), F = generateField(o);
+  const list = fieldCounts(F.placed).map(([k, n]) => `${BARRICADES[k].name} ${n}基`).join('・') || 'なし（種類を1つ以上選んでください）';
+  $('fInfo').innerHTML = `フィールド ${o.W} × ${o.D} m ＝ <b>${(o.W*o.D).toLocaleString('ja-JP')}㎡</b>（スタート地点を除く配置範囲 約${Math.round(o.W*Math.max(0, o.D - 2*o.base - 3))}㎡）<br>`
+    + `バリケード <b>${F.placed.length}基</b>：${list}　レイアウト番号 ${o.seed}${o.sym ? '・点対称' : ''}`;
+}
+$('fReroll').onclick = () => { $('fSeed').value = 1 + Math.floor(Math.random()*999999); updateFieldInfo(); };
+
+/* ===== 一括作成ダイアログ ===== */
 let genTab = 'line';
+const lineOpt = () => ({spans:Math.max(1,Math.min(20,+$('gSpans').value||1)), span:+$('gSpan').value, width:+$('gWidth').value,
+  levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked, panel:$('gPanel').checked, brace:$('gBrace').checked});
 function setGenTab(t){
   genTab = t;
-  $('tabLine').setAttribute('aria-selected', t==='line'); $('tabRing').setAttribute('aria-selected', t==='ring');
-  $('paneLine').hidden = t!=='line'; $('hintLine').hidden = t!=='line'; $('paneRing').hidden = t!=='ring'; $('rCalc').hidden = t!=='ring';
+  for (const [id, k] of [['tabLine','line'],['tabRing','ring'],['tabField','field']]) $(id).setAttribute('aria-selected', t===k);
+  $('paneLine').hidden = t!=='line'; $('hintLine').hidden = t!=='line'; $('paneRing').hidden = t!=='ring'; $('paneField').hidden = t!=='field';
+  $('calcResult').hidden = true;
   if (t==='ring') updateRingInfo();
+  if (t==='field') updateFieldInfo();
 }
-/* 3Dを作らずに、建物を囲む足場の拾い出しと金額だけを出す */
-let ringCalcTsv = '';
+/* 3Dを作らずに、拾い出しと金額だけを出す */
+let calcTsv = '';
 $('rCalc').onclick = () => {
-  const opt = ringOpt(), parts = generateRing(opt), groups = bomData(parts);
+  let parts, sumExtra = '', tsvExtra = [];
+  if (genTab === 'ring') {
+    const opt = ringOpt(); parts = generateRing(opt);
+    const A = ringArea(ringPlan(opt)), m2 = +$('rM2').value || 0;
+    sumExtra = `<span>架面積 <b>${A.area.toFixed(1)}</b>㎡</span>` + (m2 ? `<span>㎡単価での概算 <b>${fmtYen(A.area*m2)}</b></span>` : '');
+    tsvExtra = ['', `架面積(㎡)\t${A.area.toFixed(1)}\t外周(m)\t${A.perim.toFixed(2)}\t高さ(m)\t${A.height.toFixed(2)}`]
+      .concat(m2 ? [`㎡単価(円)\t${m2}\t概算(円・税抜)\t${Math.round(A.area*m2)}`] : []);
+  } else if (genTab === 'field') {
+    const o = fieldOpt(), F = generateField(o); parts = F.parts;
+    const cnt = fieldCounts(F.placed);
+    sumExtra = `<span>バリケード <b>${F.placed.length}</b>基</span>`;
+    tsvExtra = ['', `フィールド(m)\t${o.W}×${o.D}\t面積(㎡)\t${o.W*o.D}\tレイアウト番号\t${o.seed}`].concat(cnt.map(([k, n]) => `${BARRICADES[k].name}\t${n}基`));
+  } else parts = generate(lineOpt());
+  const groups = bomData(parts);
   const qty = groups.reduce((a,g)=>a+g.qty,0), kg = groups.reduce((a,g)=>a+g.kg,0), yen = groups.reduce((a,g)=>a+g.yen,0);
-  const P = ringPlan(opt), A = ringArea(P), m2 = +$('rM2').value || 0;
   let h = `<div class="sum"><span>総数量 <b>${qty.toLocaleString('ja-JP')}</b>点</span><span>総重量 <b>${kg>=1000 ? (kg/1000).toFixed(2)+'t' : fmtKg(kg)+'kg'}</b></span>`
-    + `<span>部材の金額 <b>${fmtYen(yen)}</b>（税込 ${fmtYen(yen*(1+state.taxRate/100))}）</span><span>架面積 <b>${A.area.toFixed(1)}</b>㎡</span>`
-    + (m2 ? `<span>㎡単価での概算 <b>${fmtYen(A.area*m2)}</b></span>` : '') + `<button class="linkbtn" type="button" id="rCopy">表をコピー</button></div>`;
+    + `<span>部材の金額 <b>${fmtYen(yen)}</b>（税込 ${fmtYen(yen*(1+state.taxRate/100))}）</span>${sumExtra}<button class="linkbtn" type="button" id="calcCopy">表をコピー</button></div>`;
   h += '<table class="bom"><thead><tr><th>品番・規格</th><th class="n">数量</th><th class="n">重量kg</th><th class="n">金額</th></tr></thead><tbody>';
   for (const g of groups) for (const r of g.rows)
     h += `<tr><td><span class="code">${r.it.code}</span> ${specText(r.it)}</td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td><td class="n">${fmtYen(r.yen)}</td></tr>`;
-  $('rResult').innerHTML = h + '</tbody></table>';
-  $('rResult').hidden = false;
-  ringCalcTsv = bomTsv(groups, ['', `架面積(㎡)\t${A.area.toFixed(1)}\t外周(m)\t${A.perim.toFixed(2)}\t高さ(m)\t${A.height.toFixed(2)}`]
-    .concat(m2 ? [`㎡単価(円)\t${m2}\t概算(円・税抜)\t${Math.round(A.area*m2)}`] : []));
-  $('rCopy').onclick = () => copyText(ringCalcTsv, '数量と金額をコピーしました（Excelに貼り付けできます）');
+  $('calcResult').innerHTML = h + '</tbody></table>';
+  $('calcResult').hidden = false;
+  calcTsv = bomTsv(groups, tsvExtra);
+  $('calcCopy').onclick = () => copyText(calcTsv, '数量と金額をコピーしました（Excelに貼り付けできます）');
 };
 $('tabLine').onclick = () => setGenTab('line');
 $('tabRing').onclick = () => setGenTab('ring');
-$('paneRing').addEventListener('input', updateRingInfo);
-$('paneRing').addEventListener('change', updateRingInfo);
+$('tabField').onclick = () => setGenTab('field');
+for (const ev of ['input', 'change']) {
+  $('paneRing').addEventListener(ev, updateRingInfo);
+  $('paneField').addEventListener(ev, e => { if (e.target.id !== 'fReroll') updateFieldInfo(); });
+  $('paneLine').addEventListener(ev, () => { $('calcResult').hidden = true; });
+}
 $('btnGen').onclick = () => { setGenTab(genTab); $('dlgGen').showModal(); };
+function placeGenerated(parts, replace, msg){
+  pushHistory();
+  if (replace) { state.parts = []; state.selected = null; }
+  const sigs = new Set(state.parts.map(signature));
+  for (const p of parts) { const sg = signature(p); if (!sigs.has(sg)) { sigs.add(sg); addPart(p, false); } }
+  rebuildAll(); fitView(); toast(msg);
+}
 $('genForm').addEventListener('submit', e => {
   if (e.submitter && e.submitter.value !== 'ok') return;
-  if (genTab === 'ring') {
-    pushHistory();
-    if ($('rMode').value==='replace') { state.parts = []; state.selected = null; }
-    const sigs = new Set(state.parts.map(signature));
-    for (const p of generateRing(ringOpt())) { const sg = signature(p); if (!sigs.has(sg)) { sigs.add(sg); addPart(p, false); } }
-    rebuildAll(); fitView(); toast('建物を囲む足場を作成しました');
-    return;
+  if (genTab === 'ring') return placeGenerated(generateRing(ringOpt()), $('rMode').value==='replace', '建物を囲む足場を作成しました');
+  if (genTab === 'field') {
+    const F = generateField(fieldOpt());
+    return placeGenerated(F.parts, $('fMode').value==='replace', `サバゲーフィールドを作成しました（バリケード ${F.placed.length}基）`);
   }
-  const opt = {spans:Math.max(1,Math.min(20,+$('gSpans').value||1)), span:+$('gSpan').value, width:+$('gWidth').value,
-    levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked, panel:$('gPanel').checked, brace:$('gBrace').checked};
-  pushHistory();
-  if ($('gMode').value==='replace') { state.parts = []; state.selected = null; }
-  const sigs = new Set(state.parts.map(signature));
-  for (const p of generate(opt)) { const sg = signature(p); if (!sigs.has(sg)) { sigs.add(sg); addPart(p, false); } }
-  rebuildAll(); fitView(); toast('一括作成しました');
+  placeGenerated(generate(lineOpt()), $('gMode').value==='replace', '一括作成しました');
 });
 
 /* ===== データ入出力 ===== */
@@ -1652,7 +1788,7 @@ $('dataFile').onchange = e => { const f = e.target.files[0]; if (!f) return; con
 function migrate(parts, ver){
   if ((ver||1) >= DATA_VER) return parts;
   const dy = KOMA0 - KOMA;
-  return parts.map(p => (p.type==='post' || p.type==='jack' || p.type==='person' || p.type==='building') ? p : {...p, p:[p.p[0], r4(p.p[1] + dy), p.p[2]]});
+  return parts.map(p => (p.type==='post' || p.type==='jack' || p.type==='person' || p.type==='building' || p.type==='zone') ? p : {...p, p:[p.p[0], r4(p.p[1] + dy), p.p[2]]});
 }
 function loadJson(txt){
   let data; try { data = JSON.parse(txt); } catch { toast('JSONとして読み込めません。内容を確認してください'); return; }
