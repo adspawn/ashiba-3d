@@ -9,7 +9,7 @@
   --bg:#e9ecef; --panel:#f7f8f9; --panel-2:#eef1f3; --ink:#1c2229; --muted:#5b6571; --line:#d2d8de;
   --accent:#f2b705; --accent-ink:#1c2229; --ok:#23884f; --warn:#c85a14; --bad:#c22f2f;
   --scene:#dde3e8; --grid-major:#9aa6b2; --grid-minor:#c3cbd3;
-  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c;
+  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e;
   --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
   --font-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:light;
@@ -18,13 +18,13 @@
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257;
   color-scheme:dark; }
 
 html,body{height:100%}
@@ -61,11 +61,11 @@ button,select,input,textarea{font:inherit;color:inherit}
 .sw{width:10px;height:10px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.2)}
 
 .specs{display:flex;flex-direction:column;gap:4px}
-.spec{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:5px;cursor:pointer;background:transparent;text-align:left}
+.spec{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:5px;cursor:pointer;background:transparent;text-align:left}
 .spec:hover{border-color:var(--muted)}
 .spec[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);background:var(--panel-2)}
 .spec .code{font-family:var(--font-num);font-size:12px;font-weight:700;white-space:nowrap}
-.spec .dim{color:var(--muted);font-size:12px}
+.spec .dim{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .spec .kg{font-family:var(--font-num);font-size:12px;font-variant-numeric:tabular-nums}
 
 .snaprow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2)}
@@ -203,7 +203,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
           <button class="btn" id="btnCsv" style="padding:3px 9px;font-size:12px">表をコピー</button>
         </div>
         <div class="bomwrap"><table class="bom" id="bom"></table></div>
-        <p class="hint">重量は「参考」フォルダの国産くさび式足場Aタイプ（足場JAPAN掲載値）の単重から計算しています。</p>
+        <p class="hint">重量は「参考」フォルダの国産くさび式足場Aタイプ（足場JAPAN掲載値）の単重から計算しています。合板とつば付きフックは目安の重量です。</p>
       </section>
     </aside>
   </div>
@@ -220,6 +220,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
       <label>踏板幅<select id="gBoard"><option>400</option><option>250</option></select></label>
       <label>作成方法<select id="gMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
       <label class="check"><input type="checkbox" id="gStair" checked>端部スパンに階段を入れる（スパン1800のとき）</label>
+      <label class="check"><input type="checkbox" id="gPanel">外側の手摺に合板を張る（スパン1800のとき・フック4本/枚）</label>
     </div>
     <p class="hint">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
     <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
@@ -270,17 +271,29 @@ const CATALOG = {
     {code:'KSE-6P', kg:2.1, spec:'φ38.1×600'}],
   stair: [
     {code:'KSH-1818', kg:18.5, spec:'鋼製 1800×1800'}, {code:'KSH-1818AL', kg:11.9, spec:'アルミ 1800×1800'}],
+  panel: [
+    {code:'PLY-1809', kg:11.0, spec:'合板 1820×910×12', est:true}],
 };
-const TYPES = ['post','board','ledger','jack','stair'];
-const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段'};
-const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5'};
+/* 合板1枚につき つば付きフック 4本（重量は目安） */
+const HOOK = {code:'HOOK-F', type:'hook', kg:0.2, spec:'つば付きフック（ボルト・ナット付）', est:true};
+const HOOKS_PER_PANEL = 4;
+const TYPES = ['post','board','ledger','jack','stair','panel'];
+const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック'};
+const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5', panel:'6'};
 const ITEM = {};
 for (const t of TYPES) for (const it of CATALOG[t]) { it.type = t; ITEM[it.code] = it; }
 const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' ? `${it.W}×${it.L}`
   : it.type==='ledger' ? `Φ42.7×${it.L}` : it.spec;
+const estMark = it => it.est ? '（目安）' : '';
 
 const KOMA = 0.45;        // コマ間隔 450mm
 const JACK_H = 0.25;      // ジャッキベース上端（支柱の受け）高さ
+const PANEL_W = 1.82, PANEL_H = 0.91, PANEL_T = 0.012;
+const PANEL_TOP = 0.06;      // 上の手摺芯から合板上端まで
+const PANEL_OFF = 0.065;     // 手摺芯から合板中心まで（外側）
+const RAIL_PITCH = 0.45;     // フックを掛ける上下の手摺間隔
+const HOOK_X = 0.6;          // フック穴：中心から左右 600mm
+const HOOK_DROP = 0.04;      // フック穴は手摺芯の 40mm 下
 const STAIR_RUN = 1.8, STAIR_RISE = 1.8, STAIR_W = 0.40;
 const EDGE_GAP = 0.03;    // 支柱芯から踏板端まで
 const SNAP_PX = 30;
@@ -288,7 +301,7 @@ const SNAP_PX = 30;
 /* ===== 状態 ===== */
 const state = {
   tool: 'select',
-  code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818'},
+  code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818', panel:'PLY-1809'},
   snap: true, grid: 0.3, workH: 0, rot: 0,
   parts: [], nextId: 1, selected: null,
 };
@@ -331,7 +344,8 @@ function applyTheme(){
   Object.assign(MAT, {
     post: mk('--c-post', {metalness:.55, roughness:.4}), koma: mk('--c-post', {metalness:.3, roughness:.7}),
     board: mk('--c-board'), ledger: mk('--c-ledger'), jack: mk('--c-jack'),
-    handle: mk('--c-stair'), stair: mk('--c-stair'),
+    handle: mk('--c-stair'), stair: mk('--c-stair'), panel: mk('--c-panel', {metalness:0, roughness:.9}),
+    hook: mk('--c-hook', {metalness:.6, roughness:.35}),
   });
   MAT.koma.color.multiplyScalar(.7);
   for (const m of Object.values(old)) m.dispose();
@@ -350,6 +364,17 @@ function buildGrid(){
 const geoCache = new Map();
 const cylGeo = (r,h) => { const k=`c${r}|${h}`; if(!geoCache.has(k)) geoCache.set(k,new THREE.CylinderGeometry(r,r,h,14)); return geoCache.get(k); };
 const boxGeo = (x,y,z) => { const k=`b${x}|${y}|${z}`; if(!geoCache.has(k)) geoCache.set(k,new THREE.BoxGeometry(x,y,z)); return geoCache.get(k); };
+/* つば付きフック：合板の穴（手摺芯の下）から出て、手摺を上から抱えて垂れ下がるS字 */
+const hookGeo = sg => {
+  const k = 'hook'+sg; if (geoCache.has(k)) return geoCache.get(k);
+  const z0 = sg*(PANEL_OFF + PANEL_T/2 + .004), pts = [
+    [z0, -HOOK_DROP], [sg*(PANEL_OFF - PANEL_T/2 - .005), -HOOK_DROP], [sg*.045, -HOOK_DROP+.002],
+    [sg*.036, .006], [sg*.016, .036], [-sg*.012, .04], [-sg*.034, .016], [-sg*.04, -.03]]
+    .map(([z,y]) => new THREE.Vector3(0, y, z));
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, .005, 6);
+  geoCache.set(k, geo); return geo;
+};
+const nutGeo = () => { const k='nut'; if(!geoCache.has(k)) geoCache.set(k,new THREE.CylinderGeometry(.011,.011,.012,6)); return geoCache.get(k); };
 const edgeGeo = g => { const k='e'+g.uuid; if(!geoCache.has(k)) geoCache.set(k,new THREE.EdgesGeometry(g)); return geoCache.get(k); };
 
 function buildPart(part){
@@ -389,6 +414,15 @@ function buildPart(part){
       add(boxGeo(.04, .03, W-.04), MAT.jack, L-.03, .005, off);
       break;
     }
+    case 'panel': {
+      const sg = off >= 0 ? 1 : -1;
+      add(boxGeo(PANEL_W-.004, PANEL_H, PANEL_T), MAT.panel, 0, PANEL_TOP - PANEL_H/2, off, true);
+      for (const hx of [-HOOK_X, HOOK_X]) for (const ry of [0, -RAIL_PITCH]) {
+        const h = new THREE.Mesh(hookGeo(sg), MAT.hook); h.position.set(hx, ry, 0); g.add(h);
+        add(nutGeo(), MAT.hook, hx, ry - HOOK_DROP, off + sg*(PANEL_T/2 + .009)).rotation.x = Math.PI/2;
+      }
+      break;
+    }
     case 'stair': {
       const diag = Math.hypot(STAIR_RUN, STAIR_RISE), ang = Math.atan2(STAIR_RISE, STAIR_RUN);
       for (const s of [-1,1]) {
@@ -420,18 +454,20 @@ function endsOf(part){
   if (part.type==='stair') E.y += STAIR_RISE;
   return [S, E];
 }
+const axisOf = rot => { let a = Math.round(((rot||0) * 180/Math.PI) % 180); if (a<0) a+=180; return a===180 ? 0 : a; };
 function signature(part){
   if (part.type==='post' || part.type==='jack') return part.type + '@' + keyOf(V(part.p));
+  if (part.type==='panel') return `panel@${keyOf(V(part.p))}#${axisOf(part.rot)}#${part.off>=0?1:-1}`;
   const [S,E] = endsOf(part);
   const c = S.clone().add(E).multiplyScalar(.5).addScaledVector(sideOf(part.rot||0), part.off||0);
-  let a = Math.round(((part.rot||0) * 180/Math.PI) % 180); if (a<0) a+=180; if (a===180) a=0;
-  return `${part.type}@${keyOf(c)}#${a}`;
+  return `${part.type}@${keyOf(c)}#${axisOf(part.rot)}`;
 }
 
 /* ===== 接合点（コマ・受け）の索引 ===== */
-let komaList = [], komaSet = new Set(), seatList = [], seatSet = new Set();
+let komaList = [], komaSet = new Set(), seatList = [], seatSet = new Set(), railSet = new Set();
+const railKey = (mid, rot) => `${keyOf(mid)}#${axisOf(rot)}`;
 function rebuildIndex(){
-  komaList = []; komaSet = new Set(); seatList = []; seatSet = new Set();
+  komaList = []; komaSet = new Set(); seatList = []; seatSet = new Set(); railSet = new Set();
   const bottoms = new Set();
   for (const p of state.parts) if (p.type==='post') bottoms.add(keyOf(V(p.p)));
   for (const p of state.parts) {
@@ -440,6 +476,8 @@ function rebuildIndex(){
       for (let k=1; k*KOMA <= L+1e-6; k++) { const v = new THREE.Vector3(p.p[0], p.p[1]+k*KOMA, p.p[2]); komaList.push(v); komaSet.add(keyOf(v)); }
       const top = new THREE.Vector3(p.p[0], p.p[1]+L, p.p[2]);
       seatSet.add(keyOf(top)); if (!bottoms.has(keyOf(top))) seatList.push(top);
+    } else if (p.type==='ledger') {
+      const [S,E] = endsOf(p); railSet.add(railKey(S.add(E).multiplyScalar(.5), p.rot));
     } else if (p.type==='jack') {
       const top = new THREE.Vector3(p.p[0], JACK_H, p.p[2]);
       seatSet.add(keyOf(top)); if (!bottoms.has(keyOf(top))) seatList.push(top);
@@ -449,8 +487,15 @@ function rebuildIndex(){
 function isConnected(part){
   if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
   if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
+  if (part.type==='panel') return panelRails(V(part.p), part.rot) === 2;
   const [S,E] = endsOf(part);
   return komaSet.has(keyOf(S)) && komaSet.has(keyOf(E));
+}
+
+/* 合板を掛ける上下の手摺（上=p、下=p-450）が何本あるか */
+function panelRails(top, rot){
+  const low = top.clone(); low.y -= RAIL_PITCH;
+  return (railSet.has(railKey(top, rot)) ? 1 : 0) + (railSet.has(railKey(low, rot)) ? 1 : 0);
 }
 
 /* 接合点マーカー */
@@ -563,6 +608,32 @@ function computePlacement(ev){
     if (seatSet.has(keyOf(hit))) res.status = 'ok';
     return res;
   }
+  if (t === 'panel') {
+    if (state.snap) {
+      let lg = pickPart(ev, 'ledger');
+      if (!lg) {  // 細い手摺に当てにくいので、手摺の中点に近ければ吸着
+        const lgs = state.parts.filter(x => x.type==='ledger');
+        const mids = lgs.map(x => { const [a,b] = endsOf(x); return a.add(b).multiplyScalar(.5); });
+        const m = nearestScreen(mids, ev, 45); if (m) lg = lgs[mids.indexOf(m)];
+      }
+      if (!lg) return {part:null, status:'bad', msg:'合板を掛ける手摺にカーソルを合わせてください'};
+      const [S,E] = endsOf(lg); const mid = S.clone().add(E).multiplyScalar(.5);
+      let top = mid.clone();
+      // 指した手摺が下段なら、450上の手摺を上段とする
+      if (!railSet.has(railKey(new THREE.Vector3(mid.x, mid.y-RAIL_PITCH, mid.z), lg.rot))
+          && railSet.has(railKey(new THREE.Vector3(mid.x, mid.y+RAIL_PITCH, mid.z), lg.rot))) top.y += RAIL_PITCH;
+      const hit = rayPlane(top.y);
+      const side = hit && hit.clone().sub(mid).dot(sideOf(lg.rot)) < 0 ? -1 : 1;
+      const res = mk(top, lg.rot, r4(side*PANEL_OFF), 'ok', '');
+      const n = panelRails(top, lg.rot), L = ITEM[lg.code].L;
+      if (n===2 && L===1800) res.msg = `合板 1820×910：上下2本の手摺にフック4本で掛けます`;
+      else if (n===2) { res.status = 'warn'; res.msg = `手摺が${L}mmのため合板の幅（1820）と合いません`; }
+      else { res.status = 'warn'; res.msg = '450mm下（または上）にもう1本手摺が必要です（フック4本のうち2本が掛かりません）'; }
+      return res;
+    }
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    return mk(hit, r4(state.rot*Math.PI/180), PANEL_OFF, 'free', '自由配置（上端の手摺芯の高さ＝作業高さ）');
+  }
   // 手摺・踏板・階段
   let S, rot, off = 0;
   const W = t==='board' ? it.W/1000 : t==='stair' ? STAIR_W : 0;
@@ -614,12 +685,19 @@ function showGhost(pl){
 }
 
 /* ===== ピック ===== */
-function pick(ev){
+function pick(ev, type){
   setRay(ev);
   const hits = raycaster.intersectObjects(partsGroup.children, true);
-  for (const h of hits) { let o = h.object; while (o && o.userData.partId === undefined) o = o.parent; if (o) return o.userData.partId; }
+  for (const h of hits) {
+    let o = h.object; while (o && o.userData.partId === undefined) o = o.parent;
+    if (!o) continue;
+    if (!type) return o.userData.partId;
+    const p = state.parts.find(x => x.id === o.userData.partId);
+    if (p && p.type === type) return p.id;
+  }
   return null;
 }
+const pickPart = (ev, type) => { const id = pick(ev, type); return id ? state.parts.find(x => x.id === id) : null; };
 
 /* ===== メッセージ ===== */
 function setMsg(html, cls=''){ const m = $('msg'); m.innerHTML = html; m.className = 'msg ' + cls; }
@@ -630,7 +708,7 @@ function defaultMsg(){
     if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}・${it.kg}kg）　Deleteで削除`); }
     else setMsg('部材をクリックで選択。左の棚から部材を選ぶと配置できます。');
   } else if (t==='delete') setMsg('クリックした部材を削除します。');
-  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
+  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? '手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（上下2本の手摺にフック4本で掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
 }
 
 /* ===== 入力 ===== */
@@ -695,7 +773,6 @@ function renderTools(){
   };
   mk('select','選択','V'); mk('delete','削除','X');
   for (const t of TYPES) mk(t, LABEL[t], KEY[t], '--c-'+t);
-  const last = el.lastChild; last.classList.add('wide');
 }
 function renderSpecs(){
   const t = TYPES.includes(state.tool) ? state.tool : null;
@@ -705,10 +782,11 @@ function renderSpecs(){
   for (const it of CATALOG[t]) {
     const b = document.createElement('button');
     b.className = 'spec'; b.setAttribute('aria-pressed', state.code[t]===it.code);
-    b.innerHTML = `<span class="code">${it.code}</span><span class="dim">${specText(it)}</span><span class="kg">${it.kg.toFixed(1)}kg</span>`;
+    b.innerHTML = `<span class="code">${it.code}</span><span class="dim">${specText(it)}</span><span class="kg">${it.kg.toFixed(1)}kg${it.est ? '*' : ''}</span>`;
     b.onclick = () => { state.code[t] = it.code; ghostKey=''; renderSpecs(); defaultMsg(); };
     el.appendChild(b);
   }
+  if (t==='panel') el.insertAdjacentHTML('beforeend', `<p class="hint" style="margin:2px 0 0">1枚につきつば付きフック4本（上下の手摺に2本ずつ）を自動で計上します。<br>* 重量は目安（合板 ${CATALOG.panel[0].kg}kg・フック ${HOOK.kg}kg/本）</p>`);
 }
 function setTool(t){
   state.tool = t;
@@ -743,6 +821,8 @@ function bomData(){
     const rows = CATALOG[t].filter(it => by.get(it.code)).map(it => ({it, qty:by.get(it.code), kg:by.get(it.code)*it.kg}));
     if (rows.length) groups.push({t, rows, qty:rows.reduce((a,r)=>a+r.qty,0), kg:rows.reduce((a,r)=>a+r.kg,0)});
   }
+  const nHook = state.parts.filter(p => p.type==='panel').length * HOOKS_PER_PANEL;
+  if (nHook) groups.push({t:'hook', rows:[{it:HOOK, qty:nHook, kg:nHook*HOOK.kg}], qty:nHook, kg:nHook*HOOK.kg});
   return groups;
 }
 function renderBom(){
@@ -762,7 +842,7 @@ function renderBom(){
   let h = '<thead><tr><th>品番</th><th>規格</th><th class="n">数量</th><th class="n">重量kg</th></tr></thead><tbody>';
   for (const g of groups) {
     h += `<tr class="grp"><td colspan="2"><span class="sw" style="background:var(--c-${g.t})"></span>${LABEL[g.t]}</td><td class="n">${g.qty}</td><td class="n">${fmtKg(g.kg)}</td></tr>`;
-    for (const r of g.rows) h += `<tr><td class="code">${r.it.code}</td><td>${specText(r.it)}<br><span style="color:var(--muted)">@${r.it.kg.toFixed(1)}kg</span></td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td></tr>`;
+    for (const r of g.rows) h += `<tr><td class="code">${r.it.code}</td><td>${specText(r.it)}<br><span style="color:var(--muted)">@${r.it.kg.toFixed(1)}kg${estMark(r.it)}${r.it===HOOK ? '・合板1枚に4本' : ''}</span></td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td></tr>`;
   }
   h += `</tbody><tfoot><tr><td colspan="2"><b>合計</b></td><td class="n"><b>${qty}</b></td><td class="n"><b>${fmtKg(kg)}</b></td></tr></tfoot>`;
   tb.innerHTML = h;
@@ -771,14 +851,14 @@ $('btnCsv').onclick = () => {
   const groups = bomData();
   const lines = ['区分\t品番\t規格\t数量\t単重(kg)\t重量(kg)'];
   let q=0, w=0;
-  for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg, r.kg.toFixed(1)].join('\t')); q+=r.qty; w+=r.kg; }
+  for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg + estMark(r.it), r.kg.toFixed(1)].join('\t')); q+=r.qty; w+=r.kg; }
   lines.push(['合計','','',q,'',w.toFixed(1)].join('\t'));
   copyText(lines.join('\n'), '拾い出し表をコピーしました（Excelに貼り付けできます）');
 };
 
 /* ===== 一括作成 ===== */
 const LEDGER_BY_L = {1800:'KSC-18',1200:'KSC-12',900:'KSC-09',600:'KSC-06',400:'KSC-04'};
-function generate({spans, span, width, levels, board, stair}){
+function generate({spans, span, width, levels, board, stair, panel}){
   const out = [];
   const s = span/1000, w = width/1000, n = spans;
   const yf = i => JACK_H + KOMA*4*i;
@@ -812,6 +892,7 @@ function generate({spans, span, width, levels, board, stair}){
     }
     for (let j=0;j<n;j++) { X(j*s, y+KOMA, w); X(j*s, y+2*KOMA, w); }
     for (const x of [0, n*s]) { Z(x, y+KOMA); Z(x, y+2*KOMA); }
+    if (panel && span===1800) for (let j=0;j<n;j++) out.push({type:'panel', code:'PLY-1809', p:[r4(j*s+s/2), r4(y+2*KOMA), r4(w)], rot:0, off:PANEL_OFF});
     if (useStair && i<levels) out.push({type:'stair', code:state.code.stair, p:[r4((n-1)*s),r4(y),0], rot:0, off:r4(EDGE_GAP+STAIR_W/2)});
   }
   return out;
@@ -820,7 +901,7 @@ $('btnGen').onclick = () => $('dlgGen').showModal();
 $('genForm').addEventListener('submit', e => {
   if (e.submitter && e.submitter.value !== 'ok') return;
   const opt = {spans:Math.max(1,Math.min(20,+$('gSpans').value||1)), span:+$('gSpan').value, width:+$('gWidth').value,
-    levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked};
+    levels:Math.max(1,Math.min(8,+$('gLevels').value||1)), board:+$('gBoard').value, stair:$('gStair').checked, panel:$('gPanel').checked};
   pushHistory();
   if ($('gMode').value==='replace') { state.parts = []; state.selected = null; }
   const sigs = new Set(state.parts.map(signature));
