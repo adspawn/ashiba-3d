@@ -253,16 +253,17 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
         <label>フィールドの奥行（Z方向）m<input type="number" id="fD" min="10" max="300" step="1" value="50"></label>
         <label>バリケードの密度<select id="fDensity"><option value="low">少なめ（約80㎡に1基）</option><option value="mid" selected>ふつう（約50㎡に1基）</option><option value="high">多め（約30㎡に1基）</option></select></label>
         <label>スタート地点の奥行 m<input type="number" id="fBase" min="2" max="30" step="1" value="5"></label>
-        <label class="check"><input type="checkbox" id="fPly" checked>合板壁（高さ1.8m・単管＋合板2枚）</label>
-        <label class="check"><input type="checkbox" id="fSteel" checked>鋼板壁（高さ2.0m・単管＋鋼板4枚）</label>
-        <label class="check"><input type="checkbox" id="fLow" checked>腰壁（高さ0.9m・単管＋合板横置き）</label>
+        <label class="check"><input type="checkbox" id="fPly" checked>L字 合板壁（高さ約1.9m・支柱3本＋手摺8本＋合板4枚）</label>
+        <label class="check"><input type="checkbox" id="fSteel" checked>L字 鋼板壁（高さ2.0m・支柱3本＋手摺4本＋鋼板8枚）</label>
+        <label class="check"><input type="checkbox" id="fLow" checked>L字 腰壁（高さ約1.0m・支柱3本＋手摺4本＋合板2枚）</label>
+        <label class="check"><input type="checkbox" id="fBox" checked>ロ字 合板（1.8×0.9m・両面に合板4枚）</label>
         <label class="check"><input type="checkbox" id="fTower" checked>櫓（足場1スパン・床高さ約2.3m）</label>
         <label class="check"><input type="checkbox" id="fSym" checked>点対称に配置する（両チームが公平になる）</label>
         <label>レイアウト番号（シード）<span style="display:flex;gap:6px"><input type="number" id="fSeed" min="1" max="999999" value="1" style="flex:1"><button class="btn" type="button" id="fReroll">別の配置</button></span></label>
         <label>作成方法<select id="fMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
       </div>
       <p class="ringinfo" id="fInfo"></p>
-      <p class="hint">両端をスタート地点として空け、その間にバリケードを通路2.5m以上あけて配置します。広いフィールドでは中央に櫓を置きます。バリケードは単管・クランプ・合板・鋼板・足場の部材で組むので、拾い出しと金額にそのまま入ります。</p>
+      <p class="hint">両端をスタート地点として空け、その間にバリケードを通路2.5m以上あけて配置します。広いフィールドでは中央に櫓を置きます。バリケードは自立するようにL字かロ字で組みます（支柱はジャッキベースの上、手摺は支柱のコマに差し込み、合板・鋼板は手摺に掛ける）。部材は拾い出しと金額にそのまま入ります。</p>
     </div>
     <div id="paneRing" hidden>
       <div class="grid">
@@ -1601,29 +1602,47 @@ function transformPart(pt, ang, dx, dz){
   for (const k of ['a','b','n']) if (pt[k]) q[k] = rv(pt[k]);
   return q;
 }
-/* バリケード1基の部材（ローカル座標：壁は X 方向、中心が原点、面材は +Z 側） */
-const CL_OFF = PIPE_R*2;
-const clampAt = (p, a, b, n) => ({type:'clamp', code:'CL-90', p, rot:0, off:0, a, b, n});
-function pipeFrame(xs, yRails, vCode, hCode, hStart){
-  const out = [];
-  for (const x of xs) out.push({type:'pipe', code:vCode, p:[x, 0, -CL_OFF], rot:0, off:0, ori:'v'});
-  for (const y of yRails) out.push({type:'pipe', code:hCode, p:[hStart, y, 0], rot:0, off:0, ori:'h'});
-  for (const x of xs) for (const y of yRails) out.push(clampAt([x, y, -CL_OFF], [0,1,0], [1,0,0], [0,0,CL_OFF]));
-  return out;
+/* ===== バリケード（自立するようにL字・ロ字で組む） =====
+   支柱はジャッキベースの上に立て、手摺は支柱のコマに差し込み、合板（フック）・鋼板は手摺に掛ける */
+const komaY = k => r4(JACK_H + KOMA0 + KOMA*k);   // 地面からのコマの高さ（k=0 が最下段 約490mm）
+const stand = (x, z, code) => [
+  {type:'jack', code:'KSE-6', p:[x, 0, z], rot:0, off:0},
+  {type:'post', code, p:[x, JACK_H, z], rot:0, off:0}];
+/* 1面の壁：(x0,z0) から X（alongZ=false）または Z 方向に len(m)。
+   ks＝手摺を入れるコマ段、cover＝面材、out＝面材を張る側（その方向の sideOf に対する符号） */
+function wall(x0, z0, alongZ, len, ks, cover, out){
+  const rot = alongZ ? r4(-Math.PI/2) : 0, at = t => alongZ ? [x0, z0 + t] : [x0 + t, z0];
+  const parts = ks.map(k => ({type:'ledger', code:LEDGER_BY_L[Math.round(len*1000)], p:[x0, komaY(k), z0], rot, off:0}));
+  if (cover === 'ply' && Math.abs(len - 1.8) < 1e-3)
+    // 横置きの合板：上の手摺と450下の手摺にフック4本（コマ段 k と k-1）
+    for (const k of ks) if (k % 2 === 1 && ks.includes(k-1)) { const [x, z] = at(len/2); parts.push({type:'panel', code:'PLY-1809', p:[r4(x), komaY(k), r4(z)], rot, off:r4(out*PANEL_OFF)}); }
+  if (cover === 'steel')
+    // 縦置きの鋼板（幅500）を4枚、上の手摺に取り付け（下端が地面に付く高さ）
+    for (let i=0; i<4; i++) { const [x, z] = at(.25 + i*(len - .5)/3); parts.push({type:'sheet', code:'FS-20', p:[r4(x), 1.9, r4(z)], rot, off:r4(out*(PIPE_R + SHEET_T)), ori:'v'}); }
+  return parts;
 }
+/* ローカル座標で組んでから、中心が原点に来るよう (cx, cz) だけずらす */
+const centered = (parts, cx, cz) => parts.map(pt => transformPart(pt, 0, -cx, -cz));
+const lShape = (postCode, ks, cover) => centered([
+  ...stand(0, 0, postCode), ...stand(1.8, 0, postCode), ...stand(0, 1.8, postCode),
+  ...wall(0, 0, false, 1.8, ks, cover, -1),    // X 方向の面（外側＝-Z）
+  ...wall(0, 0, true,  1.8, ks, cover, +1),    // Z 方向の面（外側＝-X）
+], .9, .9);
 const BARRICADES = {
-  ply: {name:'合板壁', r:1.15, w:3, build: () => pipeFrame([-.9, .9], [1.8, .45], 'TP-20', 'TP-20', -1)
-    .concat([-.455, .455].map(x => ({type:'panel', code:'PLY-1809', p:[x, 1.8, 0], rot:0, off:PANEL_OFF, ori:'v', drop:r4(RAIL_PITCH*3)})))},
-  steel: {name:'鋼板壁', r:1.35, w:2, build: () => pipeFrame([-1.1, 1.1], [1.9, .4], 'TP-20', 'TP-25', -1.25)
-    .concat([0,1,2,3].map(k => ({type:'sheet', code:'FS-20', p:[r4(-.75 + .5*k), 1.9, 0], rot:0, off:r4(PIPE_R + SHEET_T), ori:'v'})))},
-  low: {name:'腰壁', r:1.1, w:3, build: () => pipeFrame([-.9, .9], [.86, .41], 'TP-10', 'TP-20', -1)
-    .concat([{type:'panel', code:'PLY-1809', p:[0, .86, 0], rot:0, off:PANEL_OFF}])},
+  ply:   {name:'L字 合板壁', r:1.35, w:3, build: () => lShape('KSA-18', [0,1,2,3], 'ply')},
+  steel: {name:'L字 鋼板壁', r:1.35, w:2, build: () => lShape('KSA-18', [0,3], 'steel')},
+  low:   {name:'L字 腰壁',   r:1.35, w:3, build: () => lShape('KSA-09', [0,1], 'ply')},
+  box:   {name:'ロ字 合板',  r:1.1,  w:2, build: () => centered([
+    ...stand(0, 0, 'KSA-18'), ...stand(1.8, 0, 'KSA-18'), ...stand(0, .9, 'KSA-18'), ...stand(1.8, .9, 'KSA-18'),
+    ...wall(0, 0, false, 1.8, [0,1,2,3], 'ply', -1), ...wall(0, .9, false, 1.8, [0,1,2,3], 'ply', +1),
+    ...wall(0, 0, true, .9, [0,1,2,3], 'none', 1), ...wall(1.8, 0, true, .9, [0,1,2,3], 'none', 1),
+  ], .9, .45)},
   tower: {name:'櫓', r:1.25, w:1, build: () => generate({spans:1, span:1800, width:900, levels:1, board:400, stair:false, brace:true, panel:false})
     .map(pt => transformPart(pt, 0, -.9, -.45))},
 };
 const fieldOpt = () => ({W: Math.min(300, Math.max(10, +$('fW').value||30)), D: Math.min(300, Math.max(10, +$('fD').value||50)),
   density: $('fDensity').value, base: Math.max(2, +$('fBase').value||5), sym: $('fSym').checked, seed: Math.max(1, Math.floor(+$('fSeed').value||1)),
-  kinds: [['ply','fPly'],['steel','fSteel'],['low','fLow'],['tower','fTower']].filter(([,id]) => $(id).checked).map(([k]) => k)});
+  kinds: [['ply','fPly'],['steel','fSteel'],['low','fLow'],['box','fBox'],['tower','fTower']].filter(([,id]) => $(id).checked).map(([k]) => k)});
 function generateField({W, D, density, base, sym, seed, kinds}){
   const rng = mulberry32(seed * 9973), out = [], placed = [];
   out.push({type:'zone', code:'FIELD', p:[0,0,0], rot:0, off:0, size:[W, .01, D]});
