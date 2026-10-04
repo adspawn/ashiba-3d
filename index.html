@@ -118,6 +118,9 @@ button,select,input,textarea{font:inherit;color:inherit}
 .tabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--line)}
 .tabs button{border:none;background:none;padding:8px 12px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;font-weight:700}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.ringresult{margin-top:10px;border:1px solid var(--line);border-radius:6px;padding:10px;max-height:min(40vh,340px);overflow:auto}
+.ringresult .sum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;font-variant-numeric:tabular-nums;margin-bottom:8px}
+.ringresult .sum b{font-family:var(--font-num);font-size:15px}
 .ringinfo{margin:12px 0 0;padding:8px 10px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);font-size:12px;line-height:1.7;font-variant-numeric:tabular-nums}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
@@ -255,9 +258,13 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
         <label>作成方法<select id="rMode"><option value="replace">現在の図面を置き換え</option><option value="append">現在の図面に追加</option></select></label>
         <label class="check"><input type="checkbox" id="rStair" checked>正面に階段を入れる（スパン1800の区画）</label>
         <label class="check"><input type="checkbox" id="rBrace" checked>外周に筋交いを入れる（スパン1800・KSL-18）</label>
+        <label>筋交いの間隔<select id="rBraceEvery"><option value="1">全スパン</option><option value="2" selected>1スパンおき</option><option value="3">2スパンおき</option></select></label>
+        <label>架面積の㎡単価（円・任意）<input type="number" id="rM2" min="0" step="10" placeholder="例 1000"></label>
+        <label class="check"><input type="checkbox" id="rInner">建物側にも手摺を入れる（床+450・+900）</label>
         <label class="check"><input type="checkbox" id="rBldg" checked>建物を表示する（集計には含めない）</label>
       </div>
       <p class="ringinfo" id="rInfo"></p>
+      <div class="ringresult" id="rResult" hidden></div>
       <p class="hint">建物の四周を、離れをとって足場で囲みます。各辺は基本スパンで割り付け、端数は 600〜1200 のスパンで調整して建物の中心にそろえます。段数は最上段の手摺（床+900）が建物の高さ以上になるように決めます。</p>
     </div>
     <div class="grid" id="paneLine">
@@ -272,7 +279,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
       <label class="check"><input type="checkbox" id="gPanel">外側の手摺に合板を張る（スパン1800のとき・フック4本/枚）</label>
     </div>
     <p class="hint" id="hintLine">支柱はジャッキベースの上に積み、各段に踏板、外側に手摺（床+450・+900）、最下段に根がらみを入れます。</p>
-    <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>キャンセル</button><button class="btn" type="button" id="rCalc" hidden>数量だけ計算</button><button class="btn primary" id="gGo" value="ok">作成</button></div>
   </form>
 </dialog>
 
@@ -1343,15 +1350,15 @@ $('rotDeg').onchange = e => { state.rot = +e.target.value||0; };
 const priceOf = it => (state.prices[it.code] ?? it.price ?? 0);
 const fmtYen = x => '¥' + Math.round(x).toLocaleString('ja-JP');
 const fmtKg = x => x.toLocaleString('ja-JP', {minimumFractionDigits:1, maximumFractionDigits:1});
-function bomData(){
+function bomData(parts = state.parts){
   const by = new Map();
-  for (const p of state.parts) by.set(p.code, (by.get(p.code)||0) + 1);
+  for (const p of parts) by.set(p.code, (by.get(p.code)||0) + 1);
   const groups = [];
   for (const t of TYPES) {
     const rows = CATALOG[t].filter(it => by.get(it.code) && !it.ref).map(it => ({it, qty:by.get(it.code), kg:by.get(it.code)*it.kg, yen:by.get(it.code)*priceOf(it)}));
     if (rows.length) groups.push({t, rows, qty:rows.reduce((a,r)=>a+r.qty,0), kg:rows.reduce((a,r)=>a+r.kg,0), yen:rows.reduce((a,r)=>a+r.yen,0)});
   }
-  const nHook = state.parts.filter(p => p.type==='panel').length * HOOKS_PER_PANEL;
+  const nHook = parts.filter(p => p.type==='panel').length * HOOKS_PER_PANEL;
   if (nHook) { const yen = nHook*priceOf(HOOK); groups.push({t:'hook', rows:[{it:HOOK, qty:nHook, kg:nHook*HOOK.kg, yen}], qty:nHook, kg:nHook*HOOK.kg, yen}); }
   return groups;
 }
@@ -1380,16 +1387,16 @@ function renderBom(){
     + `<tr><td>税込（${state.taxRate}%）</td><td></td><td></td><td class="n">${fmtYen(yen * (1 + state.taxRate/100))}</td></tr></tfoot>`;
   tb.innerHTML = h;
 }
-$('btnCsv').onclick = () => {
-  const groups = bomData();
+function bomTsv(groups, extra = []){
   const lines = ['区分\t品番\t規格\t数量\t単重(kg)\t重量(kg)\t単価(円・税抜)\t金額(円・税抜)'];
   let q=0, w=0, y=0;
   for (const g of groups) for (const r of g.rows) { lines.push([LABEL[g.t], r.it.code, specText(r.it), r.qty, r.it.kg + estMark(r.it), r.kg.toFixed(1), priceOf(r.it), Math.round(r.yen)].join('\t')); q+=r.qty; w+=r.kg; y+=r.yen; }
   lines.push(['合計（税抜）','','',q,'',w.toFixed(1),'',Math.round(y)].join('\t'));
   lines.push([`消費税（${state.taxRate}%）`,'','','','','','',Math.round(y*state.taxRate/100)].join('\t'));
   lines.push(['合計（税込）','','','','','','',Math.round(y*(1+state.taxRate/100))].join('\t'));
-  copyText(lines.join('\n'), '拾い出し表をコピーしました（Excelに貼り付けできます）');
-};
+  return lines.concat(extra).join('\n');
+}
+$('btnCsv').onclick = () => copyText(bomTsv(bomData()), '拾い出し表をコピーしました（Excelに貼り付けできます）');
 
 /* ===== 一括作成 ===== */
 const LEDGER_BY_L = {1800:'KSC-18',1200:'KSC-12',900:'KSC-09',600:'KSC-06',400:'KSC-04'};
@@ -1460,7 +1467,7 @@ function ringPlan({bw, bd, bh, gap, width, span}){
     gapX: r4(-x0), gapZ: r4(-z0)};
 }
 function generateRing(opt){
-  const {board, stair, brace, bldg} = opt;
+  const {board, stair, brace, bldg, braceEvery = 1, inner = false} = opt;
   const P = ringPlan(opt), {xs, zs, levels, k0} = P;
   const out = [], m = xs.length - 1, n = zs.length - 1;
   const yf = i => k0 + KOMA*4*i;
@@ -1483,8 +1490,12 @@ function generateRing(opt){
     if (code) out.push({type:'ledger', code, p:[r4(x), r4(y), r4(z)], rot: alongZ ? r4(-Math.PI/2) : 0, off:0});
   };
   const edges = [];
-  for (let i=0; i<m; i++) for (let j=0; j<=n; j++) if (ring(i,j-1) || ring(i,j)) edges.push({x:xs[i], z:zs[j], len:xs[i+1]-xs[i], alongZ:false, outer: j===0 || j===n});
-  for (let i=0; i<=m; i++) for (let j=0; j<n; j++) if (ring(i-1,j) || ring(i,j)) edges.push({x:xs[i], z:zs[j], len:zs[j+1]-zs[j], alongZ:true, outer: i===0 || i===m});
+  // 建物側の辺：片側が外周バンド、反対側が建物（内側）の区画
+  const inside = (i, j) => i>=0 && j>=0 && i<m && j<n && !ring(i, j);
+  for (let i=0; i<m; i++) for (let j=0; j<=n; j++) if (ring(i,j-1) || ring(i,j))
+    edges.push({x:xs[i], z:zs[j], len:xs[i+1]-xs[i], alongZ:false, outer: j===0 || j===n, inner: inside(i,j-1) || inside(i,j)});
+  for (let i=0; i<=m; i++) for (let j=0; j<n; j++) if (ring(i-1,j) || ring(i,j))
+    edges.push({x:xs[i], z:zs[j], len:zs[j+1]-zs[j], alongZ:true, outer: i===0 || i===m, inner: inside(i-1,j) || inside(i,j)});
   for (const e of edges) ledger(e.x, k0, e.z, e.len, e.alongZ);   // 根がらみ
   const Wb = board/1000, bpad = L => String(Math.round(L*10)).padStart(2,'0');
   // 階段：正面（初期視点から見える Z 最大側）のバンドで、スパン1800の最初の区画
@@ -1494,7 +1505,7 @@ function generateRing(opt){
     const y = yf(lv);
     for (const e of edges) {
       ledger(e.x, y, e.z, e.len, e.alongZ);
-      if (e.outer) { ledger(e.x, y + KOMA, e.z, e.len, e.alongZ); ledger(e.x, y + 2*KOMA, e.z, e.len, e.alongZ); }
+      if (e.outer || (inner && e.inner)) { ledger(e.x, y + KOMA, e.z, e.len, e.alongZ); ledger(e.x, y + 2*KOMA, e.z, e.len, e.alongZ); }
     }
     // 踏板：正面・背面のバンドと四隅は X 方向、左右のバンドは Z 方向に渡す
     for (let i=0; i<m; i++) for (let j=0; j<n; j++) {
@@ -1517,7 +1528,9 @@ function generateRing(opt){
       let k = 0;
       for (const e of edges) {
         if (!e.outer || Math.abs(e.len - 1.8) > 1e-3) continue;
-        const up = (k++ + lv) % 2 ? -1 : 1;
+        const idx = k++;
+        if (idx % braceEvery) continue;
+        const up = (idx / braceEvery + lv) % 2 ? -1 : 1;
         out.push({type:'brace', code:'KSL-18', p:[r4(e.x), r4(yf(lv-1) + (up < 0 ? 1.8 : 0)), r4(e.z)], rot: e.alongZ ? r4(-Math.PI/2) : 0, off:0, up});
       }
     }
@@ -1527,24 +1540,53 @@ function generateRing(opt){
 }
 const ringOpt = () => ({bw:Math.max(600, +$('rW').value||0), bd:Math.max(600, +$('rD').value||0), bh:Math.max(500, +$('rH').value||0),
   gap:Math.max(0, +$('rGap').value||0), width:+$('rWidth').value, span:+$('rSpan').value, board:+$('rBoard').value,
-  stair:$('rStair').checked, brace:$('rBrace').checked, bldg:$('rBldg').checked});
+  stair:$('rStair').checked, brace:$('rBrace').checked, bldg:$('rBldg').checked,
+  braceEvery:+$('rBraceEvery').value, inner:$('rInner').checked});
+/* 架面積：足場の外周長（外側の建地の線）×最上段の手摺の高さ */
+function ringArea(P){
+  const yTop = JACK_H + KOMA0 + KOMA*4*P.levels + .9;
+  const perim = 2*((P.xs[P.xs.length-1]-P.xs[0]) + (P.zs[P.zs.length-1]-P.zs[0]));
+  return {perim, height: yTop, area: perim * yTop};
+}
 function updateRingInfo(){
-  const P = ringPlan(ringOpt()), yTop = JACK_H + KOMA0 + KOMA*4*P.levels;
+  const P = ringPlan(ringOpt()), yTop = JACK_H + KOMA0 + KOMA*4*P.levels, A = ringArea(P), m2 = +$('rM2').value || 0;
+  $('rResult').hidden = true;
   const fmt = a => a.join('＋');
   $('rInfo').innerHTML = `幅方向（X）：${fmt(P.sx)}（${P.sx.length}スパン）　奥行方向（Z）：${fmt(P.sz)}（${P.sz.length}スパン）<br>`
     + `建物からの離れ：X ${Math.round(P.gapX*1000)}mm・Z ${Math.round(P.gapZ*1000)}mm　段数：${P.levels}段（最上段の床 ${Math.round(yTop*1000)}mm／手摺 ${Math.round((yTop+.9)*1000)}mm）<br>`
-    + `外形：約 ${Math.round((P.xs[P.xs.length-1]-P.xs[0])*1000)} × ${Math.round((P.zs[P.zs.length-1]-P.zs[0])*1000)} mm`;
+    + `外形：約 ${Math.round((P.xs[P.xs.length-1]-P.xs[0])*1000)} × ${Math.round((P.zs[P.zs.length-1]-P.zs[0])*1000)} mm<br>`
+    + `架面積：外周 ${A.perim.toFixed(2)}m × 高さ ${A.height.toFixed(2)}m ＝ <b>${A.area.toFixed(1)}㎡</b>`
+    + (m2 ? `　×${m2.toLocaleString('ja-JP')}円/㎡ ＝ <b>${fmtYen(A.area*m2)}</b>（税抜・参考）` : '');
 }
 let genTab = 'line';
 function setGenTab(t){
   genTab = t;
   $('tabLine').setAttribute('aria-selected', t==='line'); $('tabRing').setAttribute('aria-selected', t==='ring');
-  $('paneLine').hidden = t!=='line'; $('hintLine').hidden = t!=='line'; $('paneRing').hidden = t!=='ring';
+  $('paneLine').hidden = t!=='line'; $('hintLine').hidden = t!=='line'; $('paneRing').hidden = t!=='ring'; $('rCalc').hidden = t!=='ring';
   if (t==='ring') updateRingInfo();
 }
+/* 3Dを作らずに、建物を囲む足場の拾い出しと金額だけを出す */
+let ringCalcTsv = '';
+$('rCalc').onclick = () => {
+  const opt = ringOpt(), parts = generateRing(opt), groups = bomData(parts);
+  const qty = groups.reduce((a,g)=>a+g.qty,0), kg = groups.reduce((a,g)=>a+g.kg,0), yen = groups.reduce((a,g)=>a+g.yen,0);
+  const P = ringPlan(opt), A = ringArea(P), m2 = +$('rM2').value || 0;
+  let h = `<div class="sum"><span>総数量 <b>${qty.toLocaleString('ja-JP')}</b>点</span><span>総重量 <b>${kg>=1000 ? (kg/1000).toFixed(2)+'t' : fmtKg(kg)+'kg'}</b></span>`
+    + `<span>部材の金額 <b>${fmtYen(yen)}</b>（税込 ${fmtYen(yen*(1+state.taxRate/100))}）</span><span>架面積 <b>${A.area.toFixed(1)}</b>㎡</span>`
+    + (m2 ? `<span>㎡単価での概算 <b>${fmtYen(A.area*m2)}</b></span>` : '') + `<button class="linkbtn" type="button" id="rCopy">表をコピー</button></div>`;
+  h += '<table class="bom"><thead><tr><th>品番・規格</th><th class="n">数量</th><th class="n">重量kg</th><th class="n">金額</th></tr></thead><tbody>';
+  for (const g of groups) for (const r of g.rows)
+    h += `<tr><td><span class="code">${r.it.code}</span> ${specText(r.it)}</td><td class="n">${r.qty}</td><td class="n">${fmtKg(r.kg)}</td><td class="n">${fmtYen(r.yen)}</td></tr>`;
+  $('rResult').innerHTML = h + '</tbody></table>';
+  $('rResult').hidden = false;
+  ringCalcTsv = bomTsv(groups, ['', `架面積(㎡)\t${A.area.toFixed(1)}\t外周(m)\t${A.perim.toFixed(2)}\t高さ(m)\t${A.height.toFixed(2)}`]
+    .concat(m2 ? [`㎡単価(円)\t${m2}\t概算(円・税抜)\t${Math.round(A.area*m2)}`] : []));
+  $('rCopy').onclick = () => copyText(ringCalcTsv, '数量と金額をコピーしました（Excelに貼り付けできます）');
+};
 $('tabLine').onclick = () => setGenTab('line');
 $('tabRing').onclick = () => setGenTab('ring');
 $('paneRing').addEventListener('input', updateRingInfo);
+$('paneRing').addEventListener('change', updateRingInfo);
 $('btnGen').onclick = () => { setGenTab(genTab); $('dlgGen').showModal(); };
 $('genForm').addEventListener('submit', e => {
   if (e.submitter && e.submitter.value !== 'ok') return;
