@@ -159,6 +159,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
     <button class="btn" id="btnRedo" title="やり直し (Ctrl+Y)">やり直し</button>
     <button class="btn" id="btnFit" title="全体表示 (F)">全体表示</button>
     <button class="btn primary" id="btnGen">一括作成</button>
+    <button class="btn" id="btnSave" title="図面をJSONファイルに保存 (Ctrl+S)">JSON保存</button>
     <button class="btn" id="btnData">データ入出力</button>
     <button class="btn danger" id="btnClear">全消去</button>
   </header>
@@ -252,10 +253,11 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
 
 <dialog id="dlgData">
   <h3>データ入出力</h3>
-  <p class="hint" style="margin-top:0">図面データ（JSON）です。コピーして保存し、あとで貼り付けて読み込めます。ファイル（.json）からも読み込めます。</p>
+  <p class="hint" style="margin-top:0">図面データ（JSON）です。「ファイルに保存」で .json ファイルとして保存するか、コピーして保存できます。読み込みはファイル選択か、貼り付けでできます。</p>
   <textarea id="dataTxt" spellcheck="false"></textarea>
   <div class="row">
     <label class="btn" style="flex-direction:row;color:var(--ink)">ファイルを読み込む<input type="file" id="dataFile" accept=".json,application/json" hidden></label>
+    <button class="btn" id="dataSave">ファイルに保存</button>
     <button class="btn" id="dataCopy">コピー</button>
     <button class="btn primary" id="dataLoad">貼り付けた内容を読み込む</button>
     <button class="btn" id="dataClose">閉じる</button>
@@ -1187,6 +1189,7 @@ addEventListener('keydown', e => {
   const k = e.key;
   if ((e.ctrlKey||e.metaKey) && k.toLowerCase()==='z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey||e.metaKey) && k.toLowerCase()==='y') { e.preventDefault(); redo(); return; }
+  if ((e.ctrlKey||e.metaKey) && k.toLowerCase()==='s') { e.preventDefault(); saveFile(); return; }
   if (e.ctrlKey||e.metaKey||e.altKey) return;
   if (k==='Delete' || k==='Backspace') { if (state.selected) { removePart(state.selected); defaultMsg(); toast('削除しました'); } return; }
   if (k==='Escape') return setTool('select');
@@ -1412,7 +1415,23 @@ $('genForm').addEventListener('submit', e => {
 });
 
 /* ===== データ入出力 ===== */
-$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:DATA_VER, prices:state.prices, taxRate:state.taxRate, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
+const exportJson = () => JSON.stringify({app:'ashiba3d', version:DATA_VER, savedAt:new Date().toISOString(), prices:state.prices, taxRate:state.taxRate, parts:state.parts.map(({id,...r})=>r)}, null, 1);
+$('btnData').onclick = () => { $('dataTxt').value = exportJson(); $('dlgData').showModal(); };
+/* JSONファイルに保存。埋め込み表示（claude.ai のウェブ版など）ではダウンロードできないので、コピー画面を出す */
+const canDownload = window.self === window.top;
+function saveFile(){
+  if (!canDownload) { $('btnData').click(); toast('この表示ではファイル保存できません。「コピー」して保存してください'); return; }
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const name = `足場設計_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  const url = URL.createObjectURL(new Blob([exportJson()], {type:'application/json'}));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`${name} を保存しました`);
+}
+$('btnSave').onclick = saveFile;
+$('dataSave').onclick = saveFile;
+if (!canDownload) { $('btnSave').hidden = true; $('dataSave').hidden = true; }
 $('dataClose').onclick = () => $('dlgData').close();
 $('dataCopy').onclick = () => copyText($('dataTxt').value, '図面データをコピーしました');
 $('dataLoad').onclick = () => loadJson($('dataTxt').value);
