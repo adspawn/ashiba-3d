@@ -9,7 +9,7 @@
   --bg:#e9ecef; --panel:#f7f8f9; --panel-2:#eef1f3; --ink:#1c2229; --muted:#5b6571; --line:#d2d8de;
   --accent:#f2b705; --accent-ink:#1c2229; --ok:#23884f; --warn:#c85a14; --bad:#c22f2f;
   --scene:#dde3e8; --grid-major:#9aa6b2; --grid-minor:#c3cbd3;
-  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e;
+  --c-post:#a9b2bc; --c-board:#7f93a6; --c-ledger:#e0a800; --c-jack:#4a5059; --c-stair:#c8742c; --c-panel:#c9a46a; --c-hook:#a8973e; --c-brace:#2f8c74; --c-person:#34466e; --c-pipe:#8d98a3; --c-clamp:#5f6873; --c-sheet:#a9bccb;
   --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
   --font-num:"JetBrains Mono",ui-monospace,Consolas,monospace;
   color-scheme:light;
@@ -18,13 +18,13 @@
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#13171b; --panel:#1b2026; --panel-2:#222830; --ink:#e4e8ec; --muted:#97a1ac; --line:#2f363e;
   --accent:#f2b705; --accent-ink:#13171b; --ok:#4cc27f; --warn:#f08a4b; --bad:#ef6464;
   --scene:#1f252c; --grid-major:#56616d; --grid-minor:#323a43;
-  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa;
+  --c-post:#b9c2cc; --c-board:#8ea2b5; --c-ledger:#f0bb1a; --c-jack:#7b838e; --c-stair:#de8a43; --c-panel:#b8935c; --c-hook:#c4b257; --c-brace:#4fb39a; --c-person:#5a73aa; --c-pipe:#a3aeb9; --c-clamp:#8b95a0; --c-sheet:#7f95a8;
   color-scheme:dark; }
 
 html,body{height:100%}
@@ -312,6 +312,19 @@ const CATALOG = {
   brace: [
     {code:'KSL-18', L:2420, span:1800, rise:1800, kg:4.0, price:2280}, {code:'KSL-12', L:1686, span:1200, rise:1350, kg:3.3, price:1840},
     {code:'KSL-09', L:1145, span:900, rise:900, kg:2.5, price:1720}],
+  /* 単管パイプ φ48.6×2.4t（2.73kg/m）。0.5〜5m・500刻み。重量・単価は目安 */
+  pipe: Array.from({length:10}, (_, i) => {
+    const L = (i+1)*500;
+    return {code:`TP-${String(L/100).padStart(2,'0')}`, L, kg:Math.round(2.73*L/100)/10, price:Math.round(L*0.7/10)*10, est:true};
+  }),
+  /* クランプ（φ48.6用）。重量・単価は目安 */
+  clamp: [
+    {code:'CL-90', kg:0.70, price:220, spec:'直交クランプ φ48.6', kind:'fixed', est:true},
+    {code:'CL-SW', kg:0.8, price:250, spec:'自在クランプ φ48.6', kind:'swivel', est:true}],
+  /* フラット鋼板（安全鋼板）幅500。重量・単価は目安 */
+  sheet: [
+    {code:'FS-20', L:2000, kg:7.0, price:1500, spec:'フラット鋼板 500×2000', est:true},
+    {code:'FS-30', L:3000, kg:10.5, price:2300, spec:'フラット鋼板 500×3000', est:true}],
   /* 寸法確認用の人（集計に含めない） */
   person: [
     {code:'MAN-170', kg:0, spec:'作業員 身長170cm', ref:true}],
@@ -319,13 +332,13 @@ const CATALOG = {
 /* 合板1枚につき つば付きフック 4本（重量は目安） */
 const HOOK = {code:'HOOK-F', type:'hook', kg:0.2, price:150, spec:'つば付きフック（ボルト・ナット付）', est:true};
 const HOOKS_PER_PANEL = 4;
-const TYPES = ['post','board','ledger','jack','stair','panel','brace','person'];
-const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）'};
-const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5', panel:'6', brace:'7', person:'8'};
+const TYPES = ['post','board','ledger','jack','stair','panel','brace','pipe','clamp','sheet','person'];
+const LABEL = {post:'支柱', board:'踏板', ledger:'手摺', jack:'ジャッキベース', stair:'階段', panel:'合板', hook:'つば付きフック', brace:'筋交い', person:'人（170cm）', pipe:'単管パイプ', clamp:'クランプ', sheet:'フラット鋼板'};
+const KEY = {post:'1', board:'2', ledger:'3', jack:'4', stair:'5', panel:'6', brace:'7', person:'8', pipe:'9', clamp:'0', sheet:'-'};
 const ITEM = {};
 for (const t of TYPES) for (const it of CATALOG[t]) { it.type = t; ITEM[it.code] = it; }
 const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' ? `${it.W}×${it.L}`
-  : it.type==='ledger' ? `Φ42.7×${it.L}` : it.type==='brace' ? `Φ27.2×${it.L}（${it.span}×${it.rise}）` : it.spec;
+  : it.type==='ledger' ? `Φ42.7×${it.L}` : it.type==='brace' ? `Φ27.2×${it.L}（${it.span}×${it.rise}）` : it.type==='pipe' ? `φ48.6×${it.L}` : it.spec;
 const estMark = it => it.est ? '（目安）' : '';
 
 /* 支柱（KSA）寸法：本体の下端から240に最初のコマ、以降450ピッチ、最後のコマから上端まで210。
@@ -357,6 +370,11 @@ const PANEL_ORI = {
 const oriOf = part => PANEL_ORI[part.ori==='v' ? 'v' : 'h'];
 const dropOf = part => part.drop || oriOf(part).drop;   // 上下のフック間隔（縦置きは掛かる手摺に合わせて決まる）
 const HOOK_DROP = 0.04;      // フック穴は手摺芯の 40mm 下
+const PIPE_R = 0.0243;        // 単管 φ48.6
+const SHEET_W = 0.5, SHEET_T = 0.004;
+/* 向きを切り替えられる部材（R キー） */
+const ORIS = {pipe:[['h','水平'],['v','垂直']], sheet:[['v','縦置き'],['h','横置き'],['roof','屋根置き']]};
+const HOST_TYPES = ['post','ledger','brace','pipe'];   // クランプ・単管・鋼板を取り付けられる部材
 const STAIR_RUN = 1.8, STAIR_RISE = 1.8, STAIR_W = 0.40;
 const EDGE_GAP = 0.03;    // 支柱芯から踏板端まで
 const SNAP_PX = 30;
@@ -366,7 +384,8 @@ const state = {
   tool: 'select',
   panelOri: 'h',
   prices: {}, taxRate: 10,   // 単価の上書き（品番→円）と消費税率（%）
-  code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818', panel:'PLY-1809', brace:'KSL-18', person:'MAN-170'},
+  code: {post:'KSA-36', board:'KSD-4018', ledger:'KSC-18', jack:'KSE-6', stair:'KSH-1818', panel:'PLY-1809', brace:'KSL-18', person:'MAN-170', pipe:'TP-20', clamp:'CL-90', sheet:'FS-20'},
+  ori: {pipe:'h', sheet:'v'},   // 単管・鋼板の向き
   snap: true, grid: 0.3, workH: 0, rot: 0,
   parts: [], nextId: 1, selected: null,
 };
@@ -412,6 +431,8 @@ function applyTheme(){
     handle: mk('--c-stair'), stair: mk('--c-stair'), panel: mk('--c-panel', {metalness:0, roughness:.9}),
     hook: mk('--c-hook', {metalness:.6, roughness:.35}),
     brace: mk('--c-brace', {metalness:.5, roughness:.45}), person: mk('--c-person', {metalness:0, roughness:.85}),
+    pipe: mk('--c-pipe', {metalness:.55, roughness:.4}), clamp: mk('--c-clamp', {metalness:.6, roughness:.4}),
+    sheet: mk('--c-sheet', {metalness:.5, roughness:.45}),
     skin: new THREE.MeshStandardMaterial({color:0xd9a77f, roughness:.8}),
     helmet: new THREE.MeshStandardMaterial({color:0xf5f3ea, roughness:.4}),
     boots: new THREE.MeshStandardMaterial({color:0x2a2a2a, roughness:.7}),
@@ -518,6 +539,30 @@ function buildPart(part){
       add(boxGeo(.06, .05, .04), MAT.koma, sp, ri, z*.6);
       break;
     }
+    case 'pipe': {
+      const L = it.L/1000;
+      if (part.ori==='v') add(cylGeo(PIPE_R, L), MAT.pipe, 0, L/2, 0);
+      else add(cylGeo(PIPE_R, L), MAT.pipe, L/2, 0, 0).rotation.z = Math.PI/2;
+      break;
+    }
+    case 'clamp': {
+      // a=取付け先の軸、b=相手の軸、n=取付け先の軸から相手の軸へのずれ
+      const a = V(part.a || [0,1,0]).normalize(), b = V(part.b || [1,0,0]).normalize(), n = V(part.n || [0,0,.0486]);
+      const Y = new THREE.Vector3(0,1,0);
+      add(cylGeo(.032, .055), MAT.clamp, 0, 0, 0).quaternion.setFromUnitVectors(Y, a);
+      add(cylGeo(.032, .055), MAT.clamp, n.x, n.y, n.z).quaternion.setFromUnitVectors(Y, b);
+      const mid = n.clone().multiplyScalar(.5);
+      if (it.kind==='swivel') add(cylGeo(.017, Math.max(.01, n.length()*.6)), MAT.koma, mid.x, mid.y, mid.z).quaternion.setFromUnitVectors(Y, n.clone().normalize());
+      else add(boxGeo(.045, .045, .045), MAT.koma, mid.x, mid.y, mid.z);
+      break;
+    }
+    case 'sheet': {
+      const L = it.L/1000;
+      if (part.ori==='roof') add(boxGeo(SHEET_W, SHEET_T, L), MAT.sheet, 0, PIPE_R + SHEET_T/2, off, true);
+      else if (part.ori==='h') add(boxGeo(L, SHEET_W, SHEET_T), MAT.sheet, 0, .1 - SHEET_W/2, off, true);
+      else add(boxGeo(SHEET_W, L, SHEET_T), MAT.sheet, 0, .1 - L/2, off, true);
+      break;
+    }
     case 'person': {
       // 身長1700：足元が原点、+X が正面
       for (const zz of [-.09, .09]) {
@@ -559,6 +604,7 @@ const keyOf = v => `${Math.round(v.x*100)},${Math.round(v.y*100)},${Math.round(v
 const lenOf = part => part.type==='stair' ? STAIR_RUN : part.type==='brace' ? ITEM[part.code].span/1000 : (ITEM[part.code].L||0)/1000;
 function endsOf(part){
   const S = V(part.p), d = dirOf(part.rot||0);
+  if (part.type==='pipe' && part.ori==='v') return [S, S.clone().add(new THREE.Vector3(0, lenOf(part), 0))];
   const E = S.clone().addScaledVector(d, lenOf(part));
   if (part.type==='stair') E.y += STAIR_RISE;
   if (part.type==='brace') E.y += ITEM[part.code].rise/1000 * (part.up || 1);
@@ -572,6 +618,8 @@ function signature(part){
     if (v.x < -1e-6 || (Math.abs(v.x) < 1e-6 && v.z < 0)) v.negate();
     return `brace@${keyOf(S.clone().add(E).multiplyScalar(.5))}#${axisOf(part.rot)}#${v.y > 0 ? 1 : -1}`;
   }
+  if (part.type==='clamp') return `clamp@${keyOf(V(part.p))}#${keyOf(V(part.n || [0,0,0]))}`;
+  if (part.type==='sheet') return `sheet@${keyOf(V(part.p))}#${axisOf(part.rot)}#${(part.off||0)>=0?1:-1}#${part.ori||'v'}`;
   if (part.type==='panel') return `panel@${keyOf(V(part.p))}#${axisOf(part.rot)}#${part.off>=0?1:-1}#${part.ori==='v'?'v':'h'}`;
   const [S,E] = endsOf(part);
   const c = S.clone().add(E).multiplyScalar(.5).addScaledVector(sideOf(part.rot||0), part.off||0);
@@ -598,7 +646,7 @@ function rebuildIndex(){
 }
 function isConnected(part){
   if (part.type==='jack') return Math.abs(part.p[1]) < 1e-3;
-  if (part.type==='person') return true;
+  if (part.type==='person' || part.type==='pipe' || part.type==='clamp' || part.type==='sheet') return true;
   if (part.type==='post') return seatSet.has(keyOf(V(part.p)));
   if (part.type==='panel') return hooksOnRail(part) === HOOKS_PER_PANEL;
   if (part.type==='board' || part.type==='stair') return hangSupported(part).every(Boolean);
@@ -734,6 +782,41 @@ function hoverLedger(ev){
   const m = nearestScreen(mids, ev, 45);
   return m ? lgs[mids.indexOf(m)] : null;
 }
+/* 部材の芯線（クランプ等の取付け先） */
+function memberAxis(part){
+  if (part.type==='post') { const A = V(part.p); return [A, A.clone().add(new THREE.Vector3(0, ITEM[part.code].L/1000, 0))]; }
+  if (part.type==='ledger' || part.type==='brace' || part.type==='pipe') return endsOf(part);
+  return null;
+}
+/* カーソル下の取付け先（支柱・手摺・筋交い・単管）と、芯線上の点（50mm刻み） */
+function pickHost(ev, filter){
+  for (const [dx, dy] of PICK_RING) {
+    setRay({clientX: ev.clientX + dx, clientY: ev.clientY + dy});
+    for (const h of raycaster.intersectObjects(partsGroup.children, true)) {
+      if (!h.object.isMesh) continue;
+      let o = h.object; while (o && o.userData.partId === undefined) o = o.parent;
+      const part = o && state.parts.find(x => x.id === o.userData.partId);
+      if (!part || !HOST_TYPES.includes(part.type)) continue;
+      const [A, B] = memberAxis(part), u = B.clone().sub(A), len = u.length(); u.normalize();
+      if (filter && !filter(part, u)) continue;
+      let t = Math.min(len, Math.max(0, Math.round(h.point.clone().sub(A).dot(u) / .05) * .05));
+      return {part, A, B, u, len, t, Q: A.clone().addScaledVector(u, t)};
+    }
+  }
+  setRay(ev);
+  return null;
+}
+/* 2本の線分の最接近点（u1,u2 は単位ベクトル） */
+function segClosest(P1, u1, len1, P2, u2, len2){
+  const r = P1.clone().sub(P2), b = u1.dot(u2), c = u1.dot(r), f = u2.dot(r), den = 1 - b*b;
+  if (den < 1e-6) return null;
+  const s = Math.min(len1, Math.max(0, (b*f - c)/den)), t = Math.min(len2, Math.max(0, (f - b*c)/den));
+  const X1 = P1.clone().addScaledVector(u1, s), X2 = P2.clone().addScaledVector(u2, t);
+  return {s, t, X1, X2, dist: X1.distanceTo(X2)};
+}
+/* 視点側を向く単位ベクトルに揃える */
+const towardCam = (v, at) => v.dot(camera.position.clone().sub(at)) < 0 ? v.negate() : v;
+
 /* 手摺に掛ける部材（踏板・階段）：渡す長さ・上がる高さ・幅 */
 const hangDims = (type, code) => type==='stair'
   ? {L:STAIR_RUN, rise:STAIR_RISE, W:STAIR_W}
@@ -800,6 +883,87 @@ function computePlacement(ev){
     const res = mk(hit, 0, 0, 'free', '自由配置');
     if (seatSet.has(keyOf(hit))) res.status = 'ok';
     return res;
+  }
+  if (t === 'pipe') {
+    const ori = state.ori.pipe, L = it.L/1000;
+    const mkp = (S, rot, status, msg) => { const r = mk(S, r4(rot), 0, status, msg); r.part.ori = ori; return r; };
+    if (state.snap) {
+      const h = pickHost(ev);
+      if (h) {
+        const Q = h.Q;
+        if (ori==='h') {
+          const hit = rayPlane(Q.y), d = hit ? hit.clone().sub(Q) : new THREE.Vector3(1,0,0);
+          let rot = Math.abs(d.x) >= Math.abs(d.z) ? (d.x >= 0 ? 0 : Math.PI) : (d.z >= 0 ? -Math.PI/2 : Math.PI/2);
+          if (Math.abs(dirOf(rot).dot(h.u)) > .9) rot = Math.abs(d.x) >= Math.abs(d.z) ? (d.z >= 0 ? -Math.PI/2 : Math.PI/2) : (d.x >= 0 ? 0 : Math.PI);
+          const u2 = dirOf(rot);
+          let n = new THREE.Vector3().crossVectors(h.u, u2);
+          if (n.length() < 1e-3) n = sideOf(rot); n.normalize();
+          if (Math.abs(n.y) > .5) n.set(0, 1, 0); else towardCam(n, Q);
+          const S = Q.clone().addScaledVector(n, PIPE_R*2).addScaledVector(u2, -.1);
+          return mkp(S, rot, 'ok', `単管 ${it.L}mm（水平）を${LABEL[h.part.type]}にクランプで取り付け（Rで垂直）`);
+        }
+        let n = Math.abs(h.u.y) > .9 ? (() => { const hit = rayPlane(Q.y); const d = hit ? hit.clone().sub(Q) : new THREE.Vector3(1,0,0); d.y = 0; return Math.abs(d.x) >= Math.abs(d.z) ? new THREE.Vector3(Math.sign(d.x)||1,0,0) : new THREE.Vector3(0,0,Math.sign(d.z)||1); })()
+          : towardCam(new THREE.Vector3(-h.u.z, 0, h.u.x).normalize(), Q);
+        const S = Q.clone().addScaledVector(n, PIPE_R*2); S.y -= .1;
+        return mkp(S, 0, 'ok', `単管 ${it.L}mm（垂直）を${LABEL[h.part.type]}にクランプで取り付け（Rで水平）`);
+      }
+      const hit = rayPlane(0); if (!hit) return null;
+      const g = snapGrid(hit);
+      if (ori==='v') { g.y = 0; return mkp(g, 0, 'warn', `単管 ${it.L}mm（垂直）を地面に立てる（取付け先の部材にカーソルを合わせるとクランプ位置に吸着）`); }
+      g.y = PIPE_R; return mkp(g, state.rot*Math.PI/180, 'warn', `単管 ${it.L}mm（水平）を地面に置く（Rで垂直）`);
+    }
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    return mkp(hit, state.rot*Math.PI/180, 'free', `単管 ${it.L}mm（${ori==='v' ? '垂直' : '水平'}）自由配置`);
+  }
+  if (t === 'clamp') {
+    const swivel = it.kind==='swivel', nm = it.spec.split(' ')[0];
+    const mkc = (P, a, b, n, status, msg) => { const r = mk(P, 0, 0, status, msg);
+      r.part.a = [a.x,a.y,a.z].map(r4); r.part.b = [b.x,b.y,b.z].map(r4); r.part.n = [n.x,n.y,n.z].map(r4); return r; };
+    if (state.snap) {
+      const h = pickHost(ev);
+      if (!h) return {part:null, status:'bad', msg:'クランプを付ける支柱・手摺・筋交い・単管にカーソルを合わせてください'};
+      // 近くで交差する部材を探す
+      let best = null;
+      for (const o of state.parts) {
+        if (o === h.part || !HOST_TYPES.includes(o.type)) continue;
+        const [A2, B2] = memberAxis(o), u2 = B2.clone().sub(A2), len2 = u2.length(); u2.normalize();
+        const c = segClosest(h.A, h.u, h.len, A2, u2, len2);
+        if (!c || c.dist < .02 || c.dist > .12 || Math.abs(c.s - h.t) > .3) continue;
+        if (!best || Math.abs(c.s - h.t) < Math.abs(best.c.s - h.t)) best = {o, c, u2};
+      }
+      if (best) {
+        const P = best.c.X1, n = best.c.X2.clone().sub(P);
+        const perp = Math.abs(h.u.dot(best.u2)) < .1;
+        const res = mkc(P, h.u, best.u2, n, 'ok', `${nm}：${LABEL[h.part.type]}と${LABEL[best.o.type]}の交差部に取り付け`);
+        if (!swivel && !perp) { res.status = 'warn'; res.msg = `${LABEL[h.part.type]}と${LABEL[best.o.type]}が斜めに交差しています（自在クランプを使ってください）`; }
+        return res;
+      }
+      let b = Math.abs(h.u.y) > .9 ? dirOf(state.rot*Math.PI/180) : new THREE.Vector3(0,1,0);
+      const n = towardCam(new THREE.Vector3().crossVectors(h.u, b).normalize(), h.Q).multiplyScalar(PIPE_R*2);
+      return mkc(h.Q, h.u, b, n, 'warn', `${nm}：交差する部材がありません（単体で取り付け）`);
+    }
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    const rot = state.rot*Math.PI/180;
+    return mkc(hit, new THREE.Vector3(0,1,0), dirOf(rot), sideOf(rot).multiplyScalar(PIPE_R*2), 'free', `${nm} 自由配置`);
+  }
+  if (t === 'sheet') {
+    const ori = state.ori.sheet, L = it.L/1000, oname = ORIS.sheet.find(x => x[0]===ori)[1];
+    const mks = (P, rot, off, status, msg) => { const r = mk(P, r4(rot), r4(off), status, msg); r.part.ori = ori; return r; };
+    if (state.snap) {
+      const h = pickHost(ev, (pt, u) => (pt.type==='ledger' || pt.type==='pipe') && Math.abs(u.y) < .1);
+      if (!h) return {part:null, status:'bad', msg:'鋼板を取り付ける手摺・単管（水平）にカーソルを合わせてください'};
+      let tt = h.t;
+      if (ori==='h') tt = Math.min(Math.max(tt, 0), h.len);
+      else tt = h.len < SHEET_W ? h.len/2 : Math.min(h.len - SHEET_W/2, Math.max(SHEET_W/2, Math.floor(tt/SHEET_W)*SHEET_W + SHEET_W/2));
+      const P = h.A.clone().addScaledVector(h.u, tt), rot = Math.atan2(-h.u.z, h.u.x);
+      // 縦置き・横置きは下端が地面より下に出ないようにする（低い手摺に付けたとき）
+      if (ori !== 'roof') P.y = Math.max(P.y, (ori==='v' ? L : SHEET_W) - .1);
+      const hit = rayPlane(P.y), sg = hit && hit.clone().sub(P).dot(sideOf(rot)) < 0 ? -1 : 1;
+      const off = ori==='roof' ? sg*(L/2 - .1) : sg*(PIPE_R + SHEET_T);
+      return mks(P, rot, off, 'ok', `フラット鋼板 ${it.L}（${oname}）を${LABEL[h.part.type]}に取り付け（Rで向きを切替）`);
+    }
+    const hit = rayPlane(state.workH); if (!hit) return null;
+    return mks(hit, state.rot*Math.PI/180, ori==='roof' ? L/2 : PIPE_R + SHEET_T, 'free', `フラット鋼板 ${it.L}（${oname}）自由配置`);
   }
   if (t === 'person') {
     const rot = r4(state.rot*Math.PI/180);
@@ -933,7 +1097,7 @@ function computePlacement(ev){
 let ghostKey = '', ghostObj = null, lastPlacement = null;
 function showGhost(pl){
   if (!pl || !pl.part) { ghostGroup.visible = false; return; }
-  const k = pl.part.code + '|' + pl.part.off + '|' + (pl.part.ori||'') + '|' + (pl.part.drop||'') + '|' + (pl.part.up||'');
+  const k = JSON.stringify({...pl.part, p:0, rot:0});
   if (k !== ghostKey) {
     if (ghostObj) ghostGroup.remove(ghostObj);
     ghostObj = buildPart(pl.part);
@@ -977,10 +1141,10 @@ function defaultMsg(){
   const t = state.tool;
   if (t==='select') {
     const p = state.selected && state.parts.find(x=>x.id===state.selected);
-    if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}${p.type==='panel' ? '・'+oriOf(p).name : ''}・${it.ref ? '集計外' : it.kg+'kg'}）　${p.type==='panel' ? 'Rで縦横切替　' : ''}Deleteで削除`); }
+    if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}${p.type==='panel' ? '・'+oriOf(p).name : ORIS[p.type] ? '・'+ORIS[p.type].find(x => x[0]===(p.ori||ORIS[p.type][0][0]))[1] : ''}・${it.ref ? '集計外' : it.kg+'kg'}）　${p.type==='panel' || ORIS[p.type] ? 'Rで向きを切替　' : ''}Deleteで削除`); }
     else setMsg('部材をクリックで選択。左の棚から部材を選ぶと配置できます。');
   } else if (t==='delete') setMsg('クリックした部材を削除します。');
-  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? `${PANEL_ORI[state.panelOri].name}：手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（Rで縦横切替）` : t==='brace' ? 'コマ（緑の点）から渡す方向へマウスを動かしてクリック（上り・下りはマウスに近い方）' : t==='person' ? `踏板・階段・地面の上に立たせます（Rで向きを回転：${state.rot}°）` : t==='board' ? '空いている区画か、踏板を掛ける手摺にカーソルを合わせてクリック（手摺と手摺の間に掛けます）' : t==='stair' ? '空いている区画か、階段の下端を掛ける手摺にカーソルを合わせてクリック（下の手摺と1800上の手摺に掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
+  else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? `${PANEL_ORI[state.panelOri].name}：手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（Rで縦横切替）` : t==='pipe' ? `取付け先の支柱・手摺・筋交い・単管にカーソルを合わせ、伸ばす方向へマウスを動かしてクリック（Rで${state.ori.pipe==='h' ? '垂直' : '水平'}に切替）` : t==='clamp' ? '部材の交差部にカーソルを合わせてクリック（2本を締める位置に吸着）' : t==='sheet' ? `水平の手摺・単管にカーソルを合わせ、張る側へマウスを寄せてクリック（Rで縦置き・横置き・屋根置きを切替）` : t==='brace' ? 'コマ（緑の点）から渡す方向へマウスを動かしてクリック（上り・下りはマウスに近い方）' : t==='person' ? `踏板・階段・地面の上に立たせます（Rで向きを回転：${state.rot}°）` : t==='board' ? '空いている区画か、踏板を掛ける手摺にカーソルを合わせてクリック（手摺と手摺の間に掛けます）' : t==='stair' ? '空いている区画か、階段の下端を掛ける手摺にカーソルを合わせてクリック（下の手摺と1800上の手摺に掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
 }
 
 /* ===== 入力 ===== */
@@ -1032,9 +1196,11 @@ addEventListener('keydown', e => {
   if (lk==='s') return setSnap(!state.snap);
   if (lk==='f') return fitView();
   if (lk==='r' && state.tool==='panel') { setPanelOri(state.panelOri==='h' ? 'v' : 'h'); return; }
+  if (lk==='r' && ORIS[state.tool]) { const o = ORIS[state.tool], i = o.findIndex(x => x[0]===state.ori[state.tool]); setOri(state.tool, o[(i+1) % o.length][0]); return; }
   if (lk==='r' && state.tool==='select' && state.selected) {
     const p = state.parts.find(x => x.id===state.selected);
     if (p && p.type==='panel') { rotatePanel(p); return; }
+    if (p && ORIS[p.type]) { cycleOri(p); return; }
   }
   if (lk==='r') { state.rot = ((state.rot + (e.shiftKey ? -15 : 15)) % 360 + 360) % 360; $('rotDeg').value = state.rot;
     if (lastEv) cvs.dispatchEvent(new PointerEvent('pointermove', lastEv)); return; }
@@ -1052,7 +1218,7 @@ function renderTools(){
     el.appendChild(b);
   };
   mk('select','選択','V'); mk('delete','削除','X');
-  for (const t of TYPES) mk(t, {jack:'ジャッキ', person:'人 170'}[t] || LABEL[t], KEY[t], '--c-'+t);
+  for (const t of TYPES) mk(t, {jack:'ジャッキ', person:'人 170', pipe:'単管', sheet:'鋼板'}[t] || LABEL[t], KEY[t], '--c-'+t);
 }
 function renderSpecs(){
   const t = TYPES.includes(state.tool) ? state.tool : null;
@@ -1066,6 +1232,10 @@ function renderSpecs(){
     b.onclick = () => { state.code[t] = it.code; ghostKey=''; renderSpecs(); defaultMsg(); };
     el.appendChild(b);
   }
+  if (ORIS[t]) el.insertAdjacentHTML('beforeend', `<div class="seg" role="group" aria-label="${LABEL[t]}の向き" style="grid-template-columns:repeat(${ORIS[t].length},1fr)">
+      ${ORIS[t].map(([o, nm]) => `<button type="button" data-tori="${o}" aria-pressed="${state.ori[t]===o}">${nm}</button>`).join('')}</div>
+    <p class="hint" style="margin:2px 0 0"><kbd>R</kbd> で向きを切り替え。選択中の${LABEL[t]}も <kbd>R</kbd> で切り替えられます。${t==='pipe' ? '支柱・手摺・筋交い・単管にカーソルを合わせるとクランプ位置に取り付きます。' : '水平の手摺・単管にカーソルを合わせて取り付けます。'}<br>* 重量・単価は目安です（単価は「単価を編集」で変更可）</p>`);
+  if (t==='clamp') el.insertAdjacentHTML('beforeend', `<p class="hint" style="margin:2px 0 0">部材の交差部にカーソルを合わせると、2本を締める位置に吸着します。直角の交差は直交クランプ、斜めの交差（筋交いなど）は自在クランプを使います。<br>* 重量・単価は目安です</p>`);
   if (t==='panel') el.insertAdjacentHTML('beforeend', `<div class="seg" role="group" aria-label="合板の向き">
       <button type="button" data-ori="h" aria-pressed="${state.panelOri==='h'}"><span class="ico h"></span>横置き</button>
       <button type="button" data-ori="v" aria-pressed="${state.panelOri==='v'}"><span class="ico v"></span>縦置き</button></div>
@@ -1088,6 +1258,24 @@ function rotatePanel(p){
   toast(`合板を${oriOf(p).name}にしました`);
 }
 document.addEventListener('click', e => { const b = e.target.closest('.seg [data-ori]'); if (b) setPanelOri(b.dataset.ori); });
+document.addEventListener('click', e => { const b = e.target.closest('.seg [data-tori]'); if (b && ORIS[state.tool]) setOri(state.tool, b.dataset.tori); });
+function setOri(t, o){
+  state.ori[t] = o; ghostKey = '';
+  for (const b of document.querySelectorAll('.seg [data-tori]')) b.setAttribute('aria-pressed', b.dataset.tori===o);
+  toast(`${LABEL[t]}：${ORIS[t].find(x => x[0]===o)[1]}`);
+  if (lastEv) cvs.dispatchEvent(new PointerEvent('pointermove', lastEv)); else defaultMsg();
+}
+/* 選択中の単管・鋼板の向きを順に切り替える */
+function cycleOri(p){
+  pushHistory();
+  const o = ORIS[p.type], i = o.findIndex(x => x[0]===(p.ori || o[0][0]));
+  p.ori = o[(i+1) % o.length][0];
+  if (p.type==='sheet') { const L = ITEM[p.code].L/1000, sg = (p.off||0) < 0 ? -1 : 1; p.off = r4(p.ori==='roof' ? sg*(L/2 - .1) : sg*(PIPE_R + SHEET_T)); }
+  const g = meshById.get(p.id); partsGroup.remove(g);
+  const ng = buildPart(p); meshById.set(p.id, ng); partsGroup.add(ng);
+  refresh(); defaultMsg();
+  toast(`${LABEL[p.type]}を${o.find(x => x[0]===p.ori)[1]}にしました`);
+}
 function setTool(t){
   state.tool = t;
   if (t!=='select') { state.selected = null; updateSelectionBox(); }
@@ -1243,7 +1431,12 @@ function loadJson(txt){
   for (const p of arr) {
     const it = ITEM[p && p.code];
     if (!it || !Array.isArray(p.p) || p.p.length!==3 || !p.p.every(Number.isFinite)) continue;
-    parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0, ...(p.ori==='v' ? {ori:'v', drop:+p.drop||PANEL_ORI.v.drop} : {}), ...(it.type==='brace' ? {up: p.up===-1 ? -1 : 1} : {})});
+    const extra = {};
+    if (['v','h','roof'].includes(p.ori)) extra.ori = p.ori;
+    if (it.type==='panel' && p.ori==='v') extra.drop = +p.drop || PANEL_ORI.v.drop;
+    if (it.type==='brace') extra.up = p.up===-1 ? -1 : 1;
+    for (const k of ['a','b','n']) if (Array.isArray(p[k]) && p[k].length===3 && p[k].every(Number.isFinite)) extra[k] = p[k].map(Number);
+    parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0, ...extra});
   }
   if (!Array.isArray(data)) {
     if (data.prices && typeof data.prices==='object') { state.prices = {}; for (const [k,v] of Object.entries(data.prices)) if ((ITEM[k] || k===HOOK.code) && Number.isFinite(v) && v >= 0) state.prices[k] = v; }
