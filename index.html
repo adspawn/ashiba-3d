@@ -256,6 +256,7 @@ dialog .check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);gri
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ===== 部材カタログ（参考: 国産くさび式足場Aタイプ） ===== */
 const CATALOG = {
@@ -292,7 +293,21 @@ const specText = it => it.type==='post' ? `Φ48.6×${it.L}` : it.type==='board' 
   : it.type==='ledger' ? `Φ42.7×${it.L}` : it.spec;
 const estMark = it => it.est ? '（目安）' : '';
 
+/* 支柱（KSA）寸法：本体の下端から240に最初のコマ、以降450ピッチ、最後のコマから上端まで210。
+   上端に125のほぞ（上の支柱に差し込む）、下端から70にピン穴 */
 const KOMA = 0.45;        // コマ間隔 450mm
+const KOMA0 = 0.24;       // 下端から最初のコマまで
+const KOMA_TOP = 0.21;    // 最後のコマから本体上端まで
+const KOMA_H = 0.04;      // コマ（緊結部）の高さ
+const PIN_L = 0.125;      // 上端のほぞ長さ
+const HOLE_BOTTOM = 0.07; // 下端からピン穴まで
+const DATA_VER = 2;       // 2: コマ位置を実寸（240起点）に変更
+/* 支柱本体の下端からのコマ高さ一覧 */
+function komaHeights(Lm){
+  const out = [];
+  for (let h = KOMA0; h <= Lm - KOMA_TOP + 1e-6; h += KOMA) out.push(h);
+  return out;
+}
 const JACK_H = 0.25;      // ジャッキベース上端（支柱の受け）高さ
 const PANEL_W = 1.82, PANEL_H = 0.91, PANEL_T = 0.012;
 const PANEL_TOP = 0.06;      // 上の手摺芯から合板上端まで
@@ -388,6 +403,19 @@ const hookGeo = sg => {
   const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, .005, 6);
   geoCache.set(k, geo); return geo;
 };
+/* コマ：4方向に出た緊結用のポケット（高さ40） */
+const komaGeo = () => {
+  if (geoCache.has('koma')) return geoCache.get('koma');
+  const parts = [new THREE.CylinderGeometry(.03, .03, .012, 16)];
+  for (let i=0; i<4; i++) {
+    const b = new THREE.BoxGeometry(.034, KOMA_H, .03);
+    b.translate(.0243 + .017, 0, 0); b.rotateY(i * Math.PI/2);
+    parts.push(b);
+  }
+  const g = mergeGeometries(parts);
+  geoCache.set('koma', g); return g;
+};
+const holeGeo = len => { const k='hole'+len; if(!geoCache.has(k)) geoCache.set(k,new THREE.CylinderGeometry(.006,.006,len,8)); return geoCache.get(k); };
 const nutGeo = () => { const k='nut'; if(!geoCache.has(k)) geoCache.set(k,new THREE.CylinderGeometry(.011,.011,.012,6)); return geoCache.get(k); };
 const edgeGeo = g => { const k='e'+g.uuid; if(!geoCache.has(k)) geoCache.set(k,new THREE.EdgesGeometry(g)); return geoCache.get(k); };
 
@@ -404,8 +432,10 @@ function buildPart(part){
     case 'post': {
       const L = it.L/1000;
       add(cylGeo(.0243, L), MAT.post, 0, L/2, 0);
-      for (let k=1; k*KOMA <= L+1e-6; k++) add(cylGeo(.046, .028), MAT.koma, 0, k*KOMA, 0);
-      add(cylGeo(.019, .08), MAT.post, 0, L+.04, 0);
+      for (const h of komaHeights(L)) add(komaGeo(), MAT.koma, 0, h, 0);
+      add(cylGeo(.019, PIN_L), MAT.post, 0, L + PIN_L/2, 0);               // ほぞ
+      add(holeGeo(.06), MAT.jack, 0, L + PIN_L - .035, 0).rotation.z = Math.PI/2;  // ほぞのピン穴
+      add(holeGeo(.054), MAT.jack, 0, HOLE_BOTTOM, 0).rotation.z = Math.PI/2;       // 下端のピン穴
       break;
     }
     case 'jack': {
@@ -487,7 +517,7 @@ function rebuildIndex(){
   for (const p of state.parts) {
     if (p.type==='post') {
       const L = ITEM[p.code].L/1000;
-      for (let k=1; k*KOMA <= L+1e-6; k++) { const v = new THREE.Vector3(p.p[0], p.p[1]+k*KOMA, p.p[2]); komaList.push(v); komaSet.add(keyOf(v)); }
+      for (const h of komaHeights(L)) { const v = new THREE.Vector3(p.p[0], p.p[1]+h, p.p[2]); komaList.push(v); komaSet.add(keyOf(v)); }
       const top = new THREE.Vector3(p.p[0], p.p[1]+L, p.p[2]);
       seatSet.add(keyOf(top)); if (!bottoms.has(keyOf(top))) seatList.push(top);
     } else if (p.type==='jack') {
@@ -1014,8 +1044,10 @@ const LEDGER_BY_L = {1800:'KSC-18',1200:'KSC-12',900:'KSC-09',600:'KSC-06',400:'
 function generate({spans, span, width, levels, board, stair, panel}){
   const out = [];
   const s = span/1000, w = width/1000, n = spans;
-  const yf = i => JACK_H + KOMA*4*i;
-  const need = 1800*levels + 900;
+  const k0 = JACK_H + KOMA0;                 // 最下段のコマ（根がらみ）
+  const yf = i => k0 + KOMA*4*i;            // 各段の床（1段=1800=コマ4つ）
+  // 最上段の手摺（床+900）のコマまで必要な支柱本体の長さ
+  const need = Math.round((KOMA0 + KOMA*(4*levels+2) + KOMA_TOP) * 1000);
   const postSeq = []; let rest = need;
   for (const L of [3600,2700,1800,900,450]) while (rest >= L) { postSeq.push(L); rest -= L; }
   if (rest > 0) postSeq.push(450);
@@ -1030,8 +1062,8 @@ function generate({spans, span, width, levels, board, stair, panel}){
   const X = (x,y,z) => out.push({type:'ledger', code:lx, p:[r4(x),r4(y),r4(z)], rot:0, off:0});
   const Z = (x,y) => out.push({type:'ledger', code:lz, p:[r4(x),r4(y),0], rot:r4(-Math.PI/2), off:0});
   // 根がらみ
-  for (let j=0;j<n;j++) for (const z of zs) X(j*s, JACK_H+KOMA, z);
-  for (const x of xs) Z(x, JACK_H+KOMA);
+  for (let j=0;j<n;j++) for (const z of zs) X(j*s, k0, z);
+  for (const x of xs) Z(x, k0);
   const Wb = board/1000, lanes = Math.max(1, Math.floor((w - 2*EDGE_GAP)/Wb));
   const bcode = `KSD-${board===400?'40':'25'}${String(span/100).padStart(2,'0')}`;
   const useStair = stair && span===1800 && levels>=2;
@@ -1063,11 +1095,17 @@ $('genForm').addEventListener('submit', e => {
 });
 
 /* ===== データ入出力 ===== */
-$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:1, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
+$('btnData').onclick = () => { $('dataTxt').value = JSON.stringify({app:'ashiba3d', version:DATA_VER, parts:state.parts.map(({id,...r})=>r)}, null, 1); $('dlgData').showModal(); };
 $('dataClose').onclick = () => $('dlgData').close();
 $('dataCopy').onclick = () => copyText($('dataTxt').value, '図面データをコピーしました');
 $('dataLoad').onclick = () => loadJson($('dataTxt').value);
 $('dataFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { $('dataTxt').value = r.result; loadJson(r.result); }; r.readAsText(f); e.target.value=''; };
+/* 旧形式（コマが下端+450起点）のデータは、支柱・ジャッキ以外を 210 下げて新しいコマに合わせる */
+function migrate(parts, ver){
+  if ((ver||1) >= DATA_VER) return parts;
+  const dy = KOMA0 - KOMA;
+  return parts.map(p => (p.type==='post' || p.type==='jack') ? p : {...p, p:[p.p[0], r4(p.p[1] + dy), p.p[2]]});
+}
 function loadJson(txt){
   let data; try { data = JSON.parse(txt); } catch { toast('JSONとして読み込めません。内容を確認してください'); return; }
   const arr = Array.isArray(data) ? data : data.parts;
@@ -1079,7 +1117,7 @@ function loadJson(txt){
     parts.push({type:it.type, code:p.code, p:p.p.map(Number), rot:+p.rot||0, off:+p.off||0, ...(p.ori==='v' ? {ori:'v', drop:+p.drop||PANEL_ORI.v.drop} : {})});
   }
   pushHistory();
-  state.parts = parts.map((p,i)=>({...p, id:i+1})); state.nextId = parts.length+1; state.selected = null;
+  state.parts = migrate(parts, Array.isArray(data) ? 1 : data.version).map((p,i)=>({...p, id:i+1})); state.nextId = parts.length+1; state.selected = null;
   rebuildAll(); fitView(); $('dlgData').close();
   toast(`${parts.length} 点を読み込みました` + (parts.length<arr.length ? `（不明な部材 ${arr.length-parts.length} 点を除外）` : ''));
 }
@@ -1111,7 +1149,7 @@ function fitView(){
   controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, dist);
 }
 const STORE = 'ashiba3d.v1';
-function save(){ try { localStorage.setItem(STORE, JSON.stringify({parts:state.parts, snap:state.snap, grid:state.grid})); } catch {} }
+function save(){ try { localStorage.setItem(STORE, JSON.stringify({ver:DATA_VER, parts:state.parts, snap:state.snap, grid:state.grid})); } catch {} }
 function load(){ try { const d = JSON.parse(localStorage.getItem(STORE)); if (d && Array.isArray(d.parts)) return d; } catch {} return null; }
 
 function resize(){
@@ -1125,7 +1163,7 @@ new MutationObserver(applyTheme).observe(document.documentElement, {attributes:t
 /* ===== 起動 ===== */
 const saved = load();
 if (saved) {
-  state.parts = saved.parts.filter(p => ITEM[p.code]);
+  state.parts = migrate(saved.parts.filter(p => ITEM[p.code]), saved.ver);
   state.nextId = state.parts.reduce((m,p)=>Math.max(m,p.id||0),0)+1;
   state.parts.forEach((p,i)=>{ if(!p.id) p.id = state.nextId++; });
   if (typeof saved.grid==='number') { state.grid = saved.grid; $('gridSel').value = String(Math.round(saved.grid*1000)); }
