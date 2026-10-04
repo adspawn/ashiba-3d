@@ -669,6 +669,7 @@ function setHover(g, color){
 
 /* ===== 配置計算 ===== */
 const raycaster = new THREE.Raycaster();
+raycaster.params.Line.threshold = 0;   // 輪郭線（エッジ表示）はクリック判定に使わない
 const ndc = new THREE.Vector2();
 let lastDir = 0;
 function setRay(ev){
@@ -918,15 +919,26 @@ function showGhost(pl){
 }
 
 /* ===== ピック ===== */
-function pick(ev, type){
+/* カーソルの位置で、視点から見て一番手前にある部材を返す。
+   手摺や筋交いは細く当てにくいので、真上で当たらなければ周囲数pxも探す */
+const PICK_RING = [[0,0],[4,0],[-4,0],[0,4],[0,-4],[8,0],[-8,0],[0,8],[0,-8],[6,6],[-6,6],[6,-6],[-6,-6]];
+function pickAt(ev, type){
   setRay(ev);
   const hits = raycaster.intersectObjects(partsGroup.children, true);
   for (const h of hits) {
+    if (!h.object.isMesh) continue;
     let o = h.object; while (o && o.userData.partId === undefined) o = o.parent;
     if (!o) continue;
     if (!type) return o.userData.partId;
     const p = state.parts.find(x => x.id === o.userData.partId);
     if (p && p.type === type) return p.id;
+  }
+  return null;
+}
+function pick(ev, type){
+  for (const [dx, dy] of PICK_RING) {
+    const id = pickAt({clientX: ev.clientX + dx, clientY: ev.clientY + dy}, type);
+    if (id) return id;
   }
   return null;
 }
@@ -938,7 +950,7 @@ function defaultMsg(){
   const t = state.tool;
   if (t==='select') {
     const p = state.selected && state.parts.find(x=>x.id===state.selected);
-    if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}${p.type==='panel' ? '・'+oriOf(p).name : ''}・${it.kg}kg）　${p.type==='panel' ? 'Rで縦横切替　' : ''}Deleteで削除`); }
+    if (p) { const it = ITEM[p.code]; setMsg(`選択中：${LABEL[p.type]} <b>${p.code}</b>（${specText(it)}${p.type==='panel' ? '・'+oriOf(p).name : ''}・${it.ref ? '集計外' : it.kg+'kg'}）　${p.type==='panel' ? 'Rで縦横切替　' : ''}Deleteで削除`); }
     else setMsg('部材をクリックで選択。左の棚から部材を選ぶと配置できます。');
   } else if (t==='delete') setMsg('クリックした部材を削除します。');
   else setMsg(`${LABEL[t]} <b>${state.code[t]}</b> を配置：${state.snap ? (t==='post' ? '緑の点（受け）を狙ってクリック' : t==='jack' ? 'グリッドに吸着して配置' : t==='panel' ? `${PANEL_ORI[state.panelOri].name}：手摺にカーソルを合わせ、張りたい側へマウスを寄せてクリック（Rで縦横切替）` : t==='brace' ? 'コマ（緑の点）から渡す方向へマウスを動かしてクリック（上り・下りはマウスに近い方）' : t==='person' ? `踏板・階段・地面の上に立たせます（Rで向きを回転：${state.rot}°）` : t==='board' ? '空いている区画か、踏板を掛ける手摺にカーソルを合わせてクリック（手摺と手摺の間に掛けます）' : t==='stair' ? '空いている区画か、階段の下端を掛ける手摺にカーソルを合わせてクリック（下の手摺と1800上の手摺に掛けます）' : '緑の点（コマ）から伸ばす方向へマウスを動かしてクリック') : '作業高さの平面上に自由配置（Rで回転）'}`);
