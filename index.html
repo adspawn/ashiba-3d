@@ -1417,21 +1417,40 @@ $('genForm').addEventListener('submit', e => {
 /* ===== データ入出力 ===== */
 const exportJson = () => JSON.stringify({app:'ashiba3d', version:DATA_VER, savedAt:new Date().toISOString(), prices:state.prices, taxRate:state.taxRate, parts:state.parts.map(({id,...r})=>r)}, null, 1);
 $('btnData').onclick = () => { $('dataTxt').value = exportJson(); $('dlgData').showModal(); };
-/* JSONファイルに保存。埋め込み表示（claude.ai のウェブ版など）ではダウンロードできないので、コピー画面を出す */
-const canDownload = window.self === window.top;
-function saveFile(){
-  if (!canDownload) { $('btnData').click(); toast('この表示ではファイル保存できません。「コピー」して保存してください'); return; }
+/* JSONファイルに保存。単独で開いたとき（ローカル・GitHub Pages）は直接ダウンロード、
+   claude.ai に埋め込まれているときは downloads 機能（閲覧者の確認つき）で保存する */
+const standalone = window.self === window.top;
+let downloads = null;
+const setSaveVisible = on => { $('btnSave').hidden = !on; $('dataSave').hidden = !on; };
+if (!standalone) {
+  setSaveVisible(false);
+  try { window.claude?.use?.('downloads')?.then(ns => { if (ns) { downloads = ns; setSaveVisible(true); } }, () => {}); } catch {}
+}
+async function saveFile(){
   const d = new Date(), pad = n => String(n).padStart(2, '0');
   const name = `足場設計_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
-  const url = URL.createObjectURL(new Blob([exportJson()], {type:'application/json'}));
-  const a = document.createElement('a'); a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast(`${name} を保存しました`);
+  const data = exportJson();
+  if (standalone) {
+    const url = URL.createObjectURL(new Blob([data], {type:'application/json'}));
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(`${name} を保存しました`);
+    return;
+  }
+  if (!downloads) { $('btnData').click(); toast('この表示ではファイル保存できません。「コピー」して保存してください'); return; }
+  try {
+    await downloads.save({filename: name, data});
+    toast(`${name} を保存しました`);
+  } catch (e) {
+    const code = e && e.code;
+    if (code === 'declined') toast('保存をキャンセルしました');
+    else if (code === 'rate_limited') toast('保存の確認がすでに開いています。少し待ってからもう一度押してください');
+    else { setSaveVisible(false); downloads = null; $('btnData').click(); toast('この表示ではファイル保存できません。「コピー」して保存してください'); }
+  }
 }
 $('btnSave').onclick = saveFile;
 $('dataSave').onclick = saveFile;
-if (!canDownload) { $('btnSave').hidden = true; $('dataSave').hidden = true; }
 $('dataClose').onclick = () => $('dlgData').close();
 $('dataCopy').onclick = () => copyText($('dataTxt').value, '図面データをコピーしました');
 $('dataLoad').onclick = () => loadJson($('dataTxt').value);
